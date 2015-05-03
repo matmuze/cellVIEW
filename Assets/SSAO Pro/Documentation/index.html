@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="Chromatica documentation.">
+		<meta name="author" content="Thomas Hourdel">
+
+		<title>SSAO Pro Documentation</title>
+
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<link href="css/main.css" rel="stylesheet">
+
+		<!--[if lt IE 9]>
+			<script>
+				/*
+				 HTML5 Shiv v3.7.0 | @afarkas @jdalton @jon_neal @rem | MIT/GPL2 Licensed
+				*/
+				(function(l,f){function m(){var a=e.elements;return"string"==typeof a?a.split(" "):a}function i(a){var b=n[a[o]];b||(b={},h++,a[o]=h,n[h]=b);return b}function p(a,b,c){b||(b=f);if(g)return b.createElement(a);c||(c=i(b));b=c.cache[a]?c.cache[a].cloneNode():r.test(a)?(c.cache[a]=c.createElem(a)).cloneNode():c.createElem(a);return b.canHaveChildren&&!s.test(a)?c.frag.appendChild(b):b}function t(a,b){if(!b.cache)b.cache={},b.createElem=a.createElement,b.createFrag=a.createDocumentFragment,b.frag=b.createFrag();
+				a.createElement=function(c){return!e.shivMethods?b.createElem(c):p(c,a,b)};a.createDocumentFragment=Function("h,f","return function(){var n=f.cloneNode(),c=n.createElement;h.shivMethods&&("+m().join().replace(/[\w\-]+/g,function(a){b.createElem(a);b.frag.createElement(a);return'c("'+a+'")'})+");return n}")(e,b.frag)}function q(a){a||(a=f);var b=i(a);if(e.shivCSS&&!j&&!b.hasCSS){var c,d=a;c=d.createElement("p");d=d.getElementsByTagName("head")[0]||d.documentElement;c.innerHTML="x<style>article,aside,dialog,figcaption,figure,footer,header,hgroup,main,nav,section{display:block}mark{background:#FF0;color:#000}template{display:none}</style>";
+				c=d.insertBefore(c.lastChild,d.firstChild);b.hasCSS=!!c}g||t(a,b);return a}var k=l.html5||{},s=/^<|^(?:button|map|select|textarea|object|iframe|option|optgroup)$/i,r=/^(?:a|b|code|div|fieldset|h1|h2|h3|h4|h5|h6|i|label|li|ol|p|q|span|strong|style|table|tbody|td|th|tr|ul)$/i,j,o="_html5shiv",h=0,n={},g;(function(){try{var a=f.createElement("a");a.innerHTML="<xyz></xyz>";j="hidden"in a;var b;if(!(b=1==a.childNodes.length)){f.createElement("a");var c=f.createDocumentFragment();b="undefined"==typeof c.cloneNode||
+				"undefined"==typeof c.createDocumentFragment||"undefined"==typeof c.createElement}g=b}catch(d){g=j=!0}})();var e={elements:k.elements||"abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video",version:"3.7.0",shivCSS:!1!==k.shivCSS,supportsUnknownElements:g,shivMethods:!1!==k.shivMethods,type:"default",shivDocument:q,createElement:p,createDocumentFragment:function(a,b){a||(a=f);
+				if(g)return a.createDocumentFragment();for(var b=b||i(a),c=b.frag.cloneNode(),d=0,e=m(),h=e.length;d<h;d++)c.createElement(e[d]);return c}};l.html5=e;q(f)})(this,document);
+			</script>
+			<script>
+				/*! matchMedia() polyfill - Test a CSS media type/query in JS. Authors & copyright (c) 2012: Scott Jehl, Paul Irish, Nicholas Zakas. Dual MIT/BSD license */
+				/*! NOTE: If you're already including a window.matchMedia polyfill via Modernizr or otherwise, you don't need this part */
+				window.matchMedia=window.matchMedia||function(a){"use strict";var c,d=a.documentElement,e=d.firstElementChild||d.firstChild,f=a.createElement("body"),g=a.createElement("div");return g.id="mq-test-1",g.style.cssText="position:absolute;top:-100em",f.style.background="none",f.appendChild(g),function(a){return g.innerHTML='&shy;<style media="'+a+'"> #mq-test-1 { width: 42px; }</style>',d.insertBefore(f,e),c=42===g.offsetWidth,d.removeChild(f),{matches:c,media:a}}}(document);
+
+				/*! Respond.js v1.3.0: min/max-width media query polyfill. (c) Scott Jehl. MIT/GPLv2 Lic. j.mp/respondjs  */
+				(function(a){"use strict";function x(){u(!0)}var b={};if(a.respond=b,b.update=function(){},b.mediaQueriesSupported=a.matchMedia&&a.matchMedia("only all").matches,!b.mediaQueriesSupported){var q,r,t,c=a.document,d=c.documentElement,e=[],f=[],g=[],h={},i=30,j=c.getElementsByTagName("head")[0]||d,k=c.getElementsByTagName("base")[0],l=j.getElementsByTagName("link"),m=[],n=function(){for(var b=0;l.length>b;b++){var c=l[b],d=c.href,e=c.media,f=c.rel&&"stylesheet"===c.rel.toLowerCase();d&&f&&!h[d]&&(c.styleSheet&&c.styleSheet.rawCssText?(p(c.styleSheet.rawCssText,d,e),h[d]=!0):(!/^([a-zA-Z:]*\/\/)/.test(d)&&!k||d.replace(RegExp.$1,"").split("/")[0]===a.location.host)&&m.push({href:d,media:e}))}o()},o=function(){if(m.length){var b=m.shift();v(b.href,function(c){p(c,b.href,b.media),h[b.href]=!0,a.setTimeout(function(){o()},0)})}},p=function(a,b,c){var d=a.match(/@media[^\{]+\{([^\{\}]*\{[^\}\{]*\})+/gi),g=d&&d.length||0;b=b.substring(0,b.lastIndexOf("/"));var h=function(a){return a.replace(/(url\()['"]?([^\/\)'"][^:\)'"]+)['"]?(\))/g,"$1"+b+"$2$3")},i=!g&&c;b.length&&(b+="/"),i&&(g=1);for(var j=0;g>j;j++){var k,l,m,n;i?(k=c,f.push(h(a))):(k=d[j].match(/@media *([^\{]+)\{([\S\s]+?)$/)&&RegExp.$1,f.push(RegExp.$2&&h(RegExp.$2))),m=k.split(","),n=m.length;for(var o=0;n>o;o++)l=m[o],e.push({media:l.split("(")[0].match(/(only\s+)?([a-zA-Z]+)\s?/)&&RegExp.$2||"all",rules:f.length-1,hasquery:l.indexOf("(")>-1,minw:l.match(/\(\s*min\-width\s*:\s*(\s*[0-9\.]+)(px|em)\s*\)/)&&parseFloat(RegExp.$1)+(RegExp.$2||""),maxw:l.match(/\(\s*max\-width\s*:\s*(\s*[0-9\.]+)(px|em)\s*\)/)&&parseFloat(RegExp.$1)+(RegExp.$2||"")})}u()},s=function(){var a,b=c.createElement("div"),e=c.body,f=!1;return b.style.cssText="position:absolute;font-size:1em;width:1em",e||(e=f=c.createElement("body"),e.style.background="none"),e.appendChild(b),d.insertBefore(e,d.firstChild),a=b.offsetWidth,f?d.removeChild(e):e.removeChild(b),a=t=parseFloat(a)},u=function(b){var h="clientWidth",k=d[h],m="CSS1Compat"===c.compatMode&&k||c.body[h]||k,n={},o=l[l.length-1],p=(new Date).getTime();if(b&&q&&i>p-q)return a.clearTimeout(r),r=a.setTimeout(u,i),void 0;q=p;for(var v in e)if(e.hasOwnProperty(v)){var w=e[v],x=w.minw,y=w.maxw,z=null===x,A=null===y,B="em";x&&(x=parseFloat(x)*(x.indexOf(B)>-1?t||s():1)),y&&(y=parseFloat(y)*(y.indexOf(B)>-1?t||s():1)),w.hasquery&&(z&&A||!(z||m>=x)||!(A||y>=m))||(n[w.media]||(n[w.media]=[]),n[w.media].push(f[w.rules]))}for(var C in g)g.hasOwnProperty(C)&&g[C]&&g[C].parentNode===j&&j.removeChild(g[C]);for(var D in n)if(n.hasOwnProperty(D)){var E=c.createElement("style"),F=n[D].join("\n");E.type="text/css",E.media=D,j.insertBefore(E,o.nextSibling),E.styleSheet?E.styleSheet.cssText=F:E.appendChild(c.createTextNode(F)),g.push(E)}},v=function(a,b){var c=w();c&&(c.open("GET",a,!0),c.onreadystatechange=function(){4!==c.readyState||200!==c.status&&304!==c.status||b(c.responseText)},4!==c.readyState&&c.send(null))},w=function(){var b=!1;try{b=new a.XMLHttpRequest}catch(c){b=new a.ActiveXObject("Microsoft.XMLHTTP")}return function(){return b}}();n(),b.update=n,a.addEventListener?a.addEventListener("resize",x,!1):a.attachEvent&&a.attachEvent("onresize",x)}})(this); 
+			</script>
+		<![endif]-->
+
+		<script type="text/javascript">
+
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-52887212-2']);
+			_gaq.push(['_trackPageview']);
+
+			(function() {
+				var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+				ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
+
+		</script>
+	</head>
+
+	<body>
+		<div id="wrap">
+			<div class="container">
+				<div class="page-header">
+					<h1>SSAO Pro Documentation</h1>
+				</div>
+
+				<!-- Index -->
+				<div id="index">
+					<ul>
+						<li><a href="#intro">Introduction</a></li>
+						<li><a href="#requirements">Requirements</a></li>
+						<li><a href="#usage">Usage</a></li>
+						<li><a href="#performances">Performances</a></li>
+						<li><a href="#notes">Random Notes</a></li>
+						<li><a href="#support">Contact &amp; Support</a></li>
+					</ul>
+				</div>
+
+				<!-- Introduction & Usage -->
+				<div id="intro" class="page-header">
+					<h2>Introduction</h2>
+				</div>
+
+				<p><strong>Screen-space ambient occlusion (SSAO)</strong> approximates ambient occlusion in realtime. It relies on the depth and normals buffers to darkens creases, holes and surfaces that are close to each other. In real life, such areas tend to block out or occlude ambient light, hence they appear darker.</p>
+
+				<p><strong>SSAO Pro</strong> offers a clean, stable and relatively fast version of SSAO for Unity with added features like lighting contribution, occlusion color or distance cutoff with smooth falloff.</p>
+
+				<div class="embed-responsive embed-responsive-16by9">
+					<iframe class="embed-responsive-item" src="http://www.youtube.com/embed/X_KkYzhIWxA?rel=0" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+				</div>
+				
+				<!-- Requirements -->
+				<div id="requirements" class="page-header">
+					<h2>Requirements</h2>
+				</div>
+
+				<p><strong>SSAO Pro</strong> requires <strong>Unity Pro 4.3+</strong> and works on desktop platforms (DirectX 9, DirectX 11, OpenGL). Although it could potentially work with OpenGL ES 2.0 and 3.0, I wouldn't recommend using this on mobile devices. It's a high-end effect, the performance cost would be too expensive for these platforms to handle at a smooth framerate. Even though the shader used in this asset <a href="#performances">is quite optimized</a>, SSAO in itself still is an expensive effect and requires a powerful computer to run at very high settings.</p>
+
+				<p>It makes use of <strong>Shader Model 3.0</strong> : NVIDIA cards since 2004 (GeForce 6), AMD cards since 2005 (Radeon X1300), Intel cards since 2006 (GMA X3000).</p>
+
+				<!-- Usage -->
+				<div id="usage" class="page-header">
+					<h2>Usage</h2>
+				</div>
+
+				<p>To add <strong>SSAO Pro</strong> to your scene select your camera and go to <em>Component -> Image Effects -> SSAO Pro</em> or drag the SSAOPro component from <em>/SSAOPro/Scripts/</em> onto your camera.</p>
+
+				<img src="img/component-ui.png" class="img-rounded img-responsive" />
+
+				<p></p>
+
+				<p>Since version 1.2, SSAO Pro comes with two algorithms :</p>
+
+				<ul>
+					<li><strong>1.1 (Legacy) : </strong> the algorithm used in versions pre-1.2. It's view-space based and is great for small details but comes with a few downsides. It can create self-shadowing artifacts in some situations and limits the range of the near/far clip planes, see the <a href="#notes">Random Notes</a> section.</li>
+					<li><strong>1.2 : </strong> an improved version of the previous algorithm. It's world-space based, without self-shadowing artifact and no limitation regarding the use of near/far clip planes. It's not as detailed as <strong>1.1 (Legacy)</strong> but works better in most situations.</li>
+				</ul>
+
+				<p>The <strong>Noise Texture</strong> is used to jitter the AO samples. If you choose to keep this field empty the effect will be slightly faster. Using a noise texture is generally recommended to avoid banding in the SSAO pass. The <strong>D</strong> button will populate the field using the default noise texture, whereas <strong>N</strong> will set it to none. If you want to make your own texture, only the red and green channels are used by the shader to get a 2D vector.</p>
+
+				<p>If <strong>High Precision</strong> is checked, SSAO Pro will generate a custom depth map instead of using the default one from Unity. It will result in a higher quality SSAO pass in the distance especially with the forward rendering path.</p>
+
+				<div class="alert alert-warning">
+					<p>Leave the <strong>High Precision</strong> unchecked in Unity 5, it's not needed anymore !</p>
+				</div>
+
+				<p>The <strong>Downsampling</strong> setting lets you change resolution at which calculations should be performed (for example, a downsampling value of 2 will work at half the screen resolution). Using downsampling increases rendering speed at the cost of quality.</p>
+
+				<p>Next is the <strong>Sample Count</strong>, or the number of ambient occlusion samples for each pixel on screen. More samples means slower but smoother rendering. Five presets are available :</p>
+
+				<ul>
+					<li><strong>Very Low : </strong> 4 samples</li>
+					<li><strong>Low : </strong> 8 samples</li>
+					<li><strong>Medium : </strong> 12 samples</li>
+					<li><strong>High : </strong> 16 samples</li>
+					<li><strong>Ultra : </strong> 20 samples</li>
+				</ul>
+
+				<p>The <strong>Intensity</strong> is the occlusion multiplier (degree of darkness added by ambient occlusion). Push this up or down to get a more or less visible effect.</p>
+
+				<p>The sampling <strong>Radius</strong> is the maximum radius of a gap (in world units) that will introduce ambient occlusion.</p>
+
+				<p><strong>Distance</strong> represents the distance between an occluded sample and its occluder.</p>
+
+				<p>The <strong>Bias</strong> is added to the occlusion cone. If you're getting artifacts you may want to push this up while playing with the <strong>Distance</strong> parameter.</p>
+
+				<p><strong>Lighting Contribution</strong> defines how much ambient occlusion should be added in bright areas. Currently, it uses the pixel luminosity computed using the common formula : <code>dot(color, float3(0.299, 0.587, 0.114))</code>. By pushing this up, bright areas will have less ambient occlusion which generally leads to more realistic results.</p>
+
+				<p>If for some reason you don't want the ambient occlusion to be black, use the <strong>Occlusion Color</strong> parameter.</p>
+
+				<p>The effect comes with three <strong>Blur Types</strong> :</p>
+
+				<ul>
+					<li><strong>None :</strong> no blur will be applied to the ambient occlusion pass.</li>
+					<li><strong>Gaussian :</strong> an optimized 9-tap filter.</li>
+					<li><strong>Bilateral :</strong> a more advanced gaussian filter which is capable of detecting borders and is more adapted to SSAO.</li>
+				</ul>
+
+				<p>If <strong>Blur Downsampling</strong> is enabled, the blur pass will be applied to the downsampled render before it gets resized to fit the screen. Else, it will be applied after the resize, which increases quality but is a bit slower.</p>
+
+				<p><strong>Distance Cutoff</strong> is used to stop applying ambient occlusion for distant objects. <strong>Max Distance</strong> and <strong>Falloff</strong> are in world unit. You will want the <strong>Max Distance</strong> to be lower than your far clipping plane. The <strong>Falloff</strong> is used to ease out the cutoff, i.e. set it to 0 and the SSAO will stop abruptly at <strong>Max Distance</strong>; set it to 50 and the SSAO will smoothly disappear starting at <code>(Max Distance) - (Falloff)</code>. It's generally a good idea to stop applying AO after 150-250 units to avoid flickering in the distance.</p>
+
+				<p>Finally, you can use the <strong>Show AO</strong> button to only show the SSAO pass to help you debug or fine tune your settings.</p>
+
+				<!-- Performances -->
+				<div id="performances" class="page-header">
+					<h2>Performances</h2>
+				</div>
+
+				<p>SSAO is known to be an expensive effect but can add a lot of depth and details to your scene. Internally, SSAO Pro makes use of an Unity feature called "über shader". The main shader has a bunch of carefully tuned variants, so depending on what your parameters are it will automatically select the most adapted shader variant for the job.</p>
+
+				<p>The following parameters affect which variant will be chosen :</p>
+
+				<ul>
+					<li><strong>Noise Texture :</strong> without noise texture the shader will skip a texture fetch and a few operations. The larger the texture, the slower it will be.</li>
+					<li><strong>High Precision :</strong> adds a render pass if checked, which can push the number of draw calls up in large scenes (Unity 4 only).</li>
+					<li><strong>Sample Count :</strong> smaller sample count means faster shader.</li>
+					<li><strong>Light Contribution :</strong> setting this to 0 will skip a texture fetch and save a few instructions.</li>
+				</ul>
+
+				<p>The most important settings regarding performances are <strong>Downsampling</strong>, <strong>Sample Count</strong>, <strong>Blur Type</strong> and <strong>Blur Downsampling</strong>. Downsampling values greater than 1 will increase rendering speed tremendously at the cost of quality. Below is a quick speed comparison between several presets (using <strong>1.1</strong> mode, <strong>1.2</strong> roughly gives the same results) :</p>
+
+				<table class="table">
+					<thead>
+						<tr>
+							<td width="25%">Samples</td>
+							<td width="25%">Downsampling/Blur</td>
+							<td width="25%">Blur</td>
+							<td width="25%">Speed</td>
+						</tr>
+					</thead>
+					<tbody>
+						<tr style="background-color: #c5b800;">
+							<td>Low</td>
+							<td>1 / No</td>
+							<td>None</td>
+							<td><strong>0.498ms</strong></td>
+						</tr>
+						<tr style="background-color: #d49900;">
+							<td>Med</td>
+							<td>1 / No</td>
+							<td>None</td>
+							<td><strong>0.652ms</strong></td>
+						</tr>
+						<tr style="background-color: #ea6c00;">
+							<td>High</td>
+							<td>1 / No</td>
+							<td>None</td>
+							<td><strong>0.845ms</strong></td>
+						</tr>
+
+						<tr style="background-color: #dc8900;">
+							<td>Low</td>
+							<td>1 / No</td>
+							<td>Bilateral</td>
+							<td><strong>0.720ms</strong></td>
+						</tr>
+						<tr style="background-color: #f15f00;">
+							<td>Med</td>
+							<td>1 / No</td>
+							<td>Bilateral</td>
+							<td><strong>0.875ms</strong></td>
+						</tr>
+						<tr style="background-color: #fb4a00;">
+							<td>High</td>
+							<td>1 / No</td>
+							<td>Bilateral</td>
+							<td><strong>1.066ms</strong></td>
+						</tr>
+
+						<tr style="background-color: #a2ff00;">
+							<td>Low</td>
+							<td>2 / No</td>
+							<td>None</td>
+							<td><strong>0.198ms</strong></td>
+						</tr>
+						<tr style="background-color: #a6f700;">
+							<td>Med</td>
+							<td>2 / No</td>
+							<td>None</td>
+							<td><strong>0.235ms</strong></td>
+						</tr>
+						<tr style="background-color: #aaee00;">
+							<td>High</td>
+							<td>2 / No</td>
+							<td>None</td>
+							<td><strong>0.286ms</strong></td>
+						</tr>
+
+						<tr style="background-color: #b0e200;">
+							<td>Low</td>
+							<td>2 / Yes</td>
+							<td>Bilateral</td>
+							<td><strong>0.321ms</strong></td>
+						</tr>
+						<tr style="background-color: #b7d500;">
+							<td>Med</td>
+							<td>2 / Yes</td>
+							<td>Bilateral</td>
+							<td><strong>0.360ms</strong></td>
+						</tr>
+						<tr style="background-color: #bec700;">
+							<td>High</td>
+							<td>2 / Yes</td>
+							<td>Bilateral</td>
+							<td><strong>0.412ms</strong></td>
+						</tr>
+
+						<tr style="background-color: #cda800;">
+							<td>Low</td>
+							<td>2 / No</td>
+							<td>Bilateral</td>
+							<td><strong>0.622ms</strong></td>
+						</tr>
+						<tr style="background-color: #e37a00;">
+							<td>Med</td>
+							<td>2 / No</td>
+							<td>Bilateral</td>
+							<td><strong>0.778ms</strong></td>
+						</tr>
+						<tr style="background-color: #f75300;">
+							<td>High</td>
+							<td>2 / No</td>
+							<td>Bilateral</td>
+							<td><strong>0.964ms</strong></td>
+						</tr>
+					</tbody>
+					</tbody>
+				</table>
+
+				<div class="alert alert-warning">
+					<p>Please note that these numbers will vary from computer to computer depending on their specs and the scene, but they can be used as a good reference table.</p>
+				</div>
+
+				<p>If you're looking for a visual comparison of these settings, check out the following picture (2100x4750 px) :</p>
+
+				<a href="img/performances.jpg" target="_blank"><img src="img/clickme.jpg" class="img-rounded img-responsive" /></a>
+
+				<p></p>
+
+				<p>As you can see, performances can vary a lot. Depending on your art style you may not need blurring at all. If you're going for a realistic look with high detail textures, using a <strong>Medium</strong> sample count without blur will probably work great. For a cartoony or texture-less look you'll need a smoother SSAO, so instead of pushing the sample count up, you could go for a <strong>Low</strong> preset and add some <strong>Bilateral</strong> blur, which will have roughly the same performance cost as <strong>High</strong> without blur but will look better. <strong>Downsampling</strong> can help you get a nice performance boost as well.</p>
+
+				<p>It really depends on your setup, scene scale and art style. Experimentation is the key !</p>
+
+				<!-- Random Notes -->
+				<div id="notes" class="page-header">
+					<h2>Random Notes</h2>
+				</div>
+
+				<div class="alert alert-warning">
+					<p>The following is for <strong>1.1 (Legacy)</strong> mode only :</p>
+
+					<p>This mode is very sensitive to the quality of the depth map. For this reason, it's highly recommended to work at proper scale (1 Unity unit = 1 meter) and keep the near and far view plane at reasonable distances. <strong>The near plane distance is quite important and should be as far as possible</strong>. Moving it from <code>0.1</code> to <code>0.3</code> or <code>0.4</code> actually helps precision <strong>a lot</strong>, even though the change is quite minimal. Also try to avoid setting the far plane to impossible values like <code>100000</code>. Generally speaking, the default <code>[0.3;1000]</code> range is fine. <strong>If you don't need a range this large, reduce it as much as you can and enjoy the extra precision gain for the SSAO.</strong> Using a low precision depth map will lead to nasty SSAO banding and self-shadowing artifacts.</p>
+				</div>
+
+				<p>Regarding fog usage, SSAO doesn't play well with it. That's one of the reason why there's a <strong>Distance Cutoff</strong> parameter available, so you can work around this issue easily.</p>
+
+				<!-- Contact & Support -->
+				<div id="support" class="page-header">
+					<h2>Contact &amp; Support</h2>
+				</div>
+
+				<p>If you have any questions or feedback, you can contact me at :</p>
+
+				<ul>
+					<li>E-mail : <a href="mailto:thomas.hourdel@gmail.com">thomas.hourdel@gmail.com</a></li>
+					<li>Twitter : <a href="http://www.twitter.com/Chman">@Chman</a></li>
+					<li>Unity Community : <a href="http://forum.unity3d.com/members/15388-Chman">Chman</a></li>
+				</ul>
+
+				<p>Quick links :</p>
+
+				<ul>
+					<li><a href="https://www.assetstore.unity3d.com/#!/content/22369">Asset Store Page</a> (leave a review!)</li>
+					<li><a href="http://chman.itch.io/ssao-pro">Itch.io</a></li>
+					<li><a href="http://forum.unity3d.com/threads/ssao-pro-high-quality-screen-space-ambient-occlusion.274003/">Support Forum</a></li>
+					<li>Like SSAO Pro ? Check out my other <a href="https://www.assetstore.unity3d.com/en/#!/publisher/1627">Unity Assets</a></li>
+				</ul>
+			</div>
+
+			<div id="footer">
+				<div class="container">
+					<p class="text-muted credit">SSAO Pro Documentation &middot; &copy; <a href="http://www.thomashourdel.com">Thomas Hourdel</a></p>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

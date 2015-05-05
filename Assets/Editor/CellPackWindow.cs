@@ -45,8 +45,9 @@ public class CellPackWindow : EditorWindow
     public static void LoadScene()
     {
         CellPackLoader.ClearScene();
-        CellPackLoader.LoadScene();
-        EditorUtility.SetDirty(SceneManager.Instance);
+        //CellPackLoader.LoadScene();
+		CellPackLoader.loadRecipe();
+		EditorUtility.SetDirty(SceneManager.Instance);
     }
 
     // Add menu item named "My Window" to the Window menu

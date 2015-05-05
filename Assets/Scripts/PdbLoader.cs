@@ -106,9 +106,9 @@ public static class PdbLoader
                     Debug.Log("Atom symbol not found: " + atomSymbol);
                     symbolId = 0;
                 }
-
-                var pos = new Vector3(x, y, z);
-                var atom = new Vector4(pos.x, pos.y, pos.z, symbolId);
+				//should use -Z pdb are right-handed
+                var pos = new Vector3(x, y, z);//why this line ?
+                var atom = new Vector4(-pos.x, pos.y, pos.z, symbolId);
                 atoms.Add(atom);
             }
         }

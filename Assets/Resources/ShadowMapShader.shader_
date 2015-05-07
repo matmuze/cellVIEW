@@ -1,0 +1,184 @@
+﻿//Shader "Custom/ShadowMapShader" 
+//{	
+//	CGINCLUDE
+
+//	#include "Common.cginc"	
+//	#include "UnityCG.cginc"	
+//	#include "ShaderHelper.cginc"
+	
+//	//--------------------------------------------------------------------------------------
+												
+//	void VS_SHADOW_MAP(uint id : SV_VertexID, out vs2hs output)
+//	{
+//		float4 subInstanceInfo = _SubInstancesInfo[id];
+
+//		uint instanceId = subInstanceInfo.y;
+//		uint instanceType = molTypes[instanceId];
+//		uint instanceAtomCount = molAtomCountBuffer[instanceType];				
+//		uint instanceAtomStart = molAtomStartBuffer[instanceType];
+
+//		uint subInstanceId = subInstanceInfo.x;
+//		uint subInstanceEffectiveAtomCount = subInstanceInfo.z;
+				
+//		output.id = instanceId;
+//		output.molType = instanceType;		
+//		output.molState = molStates[instanceId];
+//		output.rot = molRotations[instanceId];
+//		output.pos = (molPositions[instanceId].xyz + _SubInstancesPositions[id].xyz) * _Scale;
+									
+//		output.atomCount = instanceAtomCount;
+//		output.atomStart = instanceAtomStart;
+
+//		// Set default lod values
+//		output.lodInfo.level = 0;
+//		output.lodInfo.atomRadiusMin = 5;
+//		output.lodInfo.atomRadiusMax = 5; 			
+//		output.lodInfo.atomRadiusLerp = 0; 					
+//		output.lodInfo.atomDecimationFactor = 10;
+		
+//		output.subIntanceAtomStart = subInstanceInfo.w;
+//		output.subIntanceAtomCount = ceil((float)subInstanceEffectiveAtomCount / (float)output.lodInfo.atomDecimationFactor);		
+					
+//		// Toggle ingredients visibily 
+//		output.subIntanceAtomCount = (_ToggleIngredientsBuffer[instanceType] == 0) ? 0 : output.subIntanceAtomCount;			
+										
+//		// Do cross section
+//		if(_EnableCrossSection && PlaneTest(_CrossSectionPlane, output.pos, 0)) output.subIntanceAtomCount = 0;	
+							
+//		return;
+//	}	
+
+//	//--------------------------------------------------------------------------------------
+
+//	void HSConst(InputPatch<vs2hs, 1> input, uint patchID : SV_PrimitiveID, out hsConst output)
+//	{
+//		output.tessFactor[0] = output.tessFactor[1] = ( input[0].molType < 0 || input[0].subIntanceAtomCount == 0 ) ? 0 : ceil(sqrt(input[0].subIntanceAtomCount));									
+//		return;
+//	}	
+
+//	//--------------------------------------------------------------------------------------
+
+//	[domain("isoline")]
+//	[partitioning("integer")]
+//	[outputtopology("point")]
+//	[outputcontrolpoints(1)]				
+//	[patchconstantfunc("HSConst")]
+//	hs2ds HS_SHADOW_MAP (InputPatch<vs2hs, 1> input, uint ID : SV_OutputControlPointID)
+//	{
+//		return input[0];
+//	} 
+			
+//	//--------------------------------------------------------------------------------------
+
+//	[domain("isoline")]
+//	void DS_SHADOW_MAP(hsConst input, const OutputPatch<hs2ds, 1> op, float2 uv : SV_DomainLocation, out ds2gs output)
+//	{
+//		output.id = op[0].id;
+//		output.molType = op[0].molType;
+//		output.molState = op[0].molState;
+//		output.lodInfo  = op[0].lodInfo;
+
+//		int x = round(uv.y * input.tessFactor[0]);
+//		int y = round(uv.x * input.tessFactor[0]);		
+//		int pointId = x + y * input.tessFactor[0];						
+				
+//		int atomId = op[0].subIntanceAtomStart + pointId * op[0].lodInfo.atomDecimationFactor;
+//		float4 atomDataPDB = atomDataPDBBuffer[op[0].atomStart + atomId];				
+				
+//		// Discard additional atoms
+//		output.atomType = (y >= input.tessFactor[0] || pointId >= op[0].subIntanceAtomCount || atomId >= op[0].atomCount) ? -1 : atomDataPDB.w;
+//		output.pos = op[0].pos + qtransform(op[0].rot, atomDataPDB.xyz) * _Scale;	
+																										
+//		return;			
+//	}	
+	
+//	//--------------------------------------------------------------------------------------		
+	
+//	struct gs2fs
+//	{				
+//		float2 uv: TEXCOORD0;	
+//		centroid float4 pos : SV_Position;			
+		
+//		nointerpolation float radius : FLOAT0;
+//		nointerpolation float eyeDistance : FLOAT1;	
+//		nointerpolation float3 color : FLOAT30;	
+//	};		
+
+//	[maxvertexcount(4)]
+//	void GS_SHADOW_MAP(point ds2gs input[1], inout TriangleStream<gs2fs> triangleStream)
+//	{
+//		// Discard unwanted atoms
+//		if( input[0].atomType < 0 ) return;			
+
+//		input[0].lodInfo.atomRadiusMin = max(atomRadii[input[0].atomType], input[0].lodInfo.atomRadiusMin);
+//		input[0].lodInfo.atomRadiusMax = max(input[0].lodInfo.atomRadiusMin, input[0].lodInfo.atomRadiusMax);
+
+//		gs2fs output;					
+//		output.radius = lerp(input[0].lodInfo.atomRadiusMin, input[0].lodInfo.atomRadiusMax, input[0].lodInfo.atomRadiusLerp) * _Scale;	
+//		output.color = SetHSL(molColors[input[0].molType].rgb, float3(-1, 0.35 , 0.5));	
+
+//		// Eye distance to write in shadow map
+//		output.eyeDistance = mul(_ShadowCameraViewMatrix, float4(input[0].pos,1)).z;
+
+//		float4 pos = mul(_ShadowCameraViewProjMatrix, float4(input[0].pos, 1));
+//		float4 offset = mul(UNITY_MATRIX_P, float4(output.radius, output.radius, 0, 0));
+
+//		//*****//
+
+//		output.uv = float2(1.0f, 1.0f);
+//		output.pos = pos + float4(output.uv * offset.xy, offset.z, 0);
+//		triangleStream.Append(output);
+
+//		output.uv = float2(1.0f, -1.0f);
+//		output.pos = pos + float4(output.uv * offset.xy, offset.z, 0);
+//		triangleStream.Append(output);	
+								
+//		output.uv = float2(-1.0f, 1.0f);
+//		output.pos = pos + float4(output.uv * offset.xy, offset.z, 0);
+//		triangleStream.Append(output);
+
+//		output.uv = float2(-1.0f, -1.0f);
+//		output.pos = pos + float4(output.uv * offset.xy, offset.z, 0);
+//		triangleStream.Append(output);	
+//	}
+
+//	//--------------------------------------------------------------------------------------
+
+//	void FS_SHADOW_MAP (gs2fs input, out float4 eyeDepth : COLOR0, out float4 colorDebug : COLOR1) 
+//	{					
+//		float lensqr = dot(input.uv, input.uv);   
+//		if(lensqr > 1) discard;
+
+//		// Find color		
+//		eyeDepth = float4(input.eyeDistance, 0,0,0);
+		
+//		// Find color		
+//		colorDebug = float4(input.color, 1);			
+//	}
+
+//	ENDCG
+
+//	SubShader 
+//	{			
+//		Pass 
+//	    {
+//			ZWrite On
+
+//	    	CGPROGRAM			
+	    		
+//			#include "UnityCG.cginc"
+			
+//			#pragma only_renderers d3d11
+//			#pragma target 5.0				
+			
+//			#pragma vertex VS_SHADOW_MAP	
+//			#pragma hull HS_SHADOW_MAP
+//			#pragma domain DS_SHADOW_MAP				
+//			#pragma geometry GS_SHADOW_MAP				
+//			#pragma fragment FS_SHADOW_MAP
+						
+//			ENDCG
+//		}			
+//	}
+//	Fallback Off
+//}	

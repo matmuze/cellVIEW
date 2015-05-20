@@ -1,0 +1,61 @@
+﻿uniform	int _Offset;
+uniform	int _NumControlPoints;
+uniform	RWStructuredBuffer<float4> _DnaControlPoints;
+
+//could be made in several iterations using shared memory
+
+#pragma kernel CSDistanceConstraint
+
+uniform	float _DistanceMax;
+
+// Distance Contraints
+[numthreads(16,1,1)]
+void CSDistanceConstraint (uint3 id : SV_DispatchThreadID)
+{
+    int id0 = id.x * 2 + _Offset;
+	int id1 = id0 + 1; 
+		
+	if(id1 >= _NumControlPoints) return;
+
+	float distanceMax = _DistanceMax;
+
+	float3 pos0 = _DnaControlPoints[id0].xyz;
+	float3 pos1 = _DnaControlPoints[id1].xyz;
+
+	float3 diff = pos0 - pos1;
+	float3 dir = normalize(diff);
+	float delta = (distanceMax - length(diff)) * 0.1;
+	
+	float3 delta_p = delta * dir;
+
+    _DnaControlPoints[id0] = float4(pos0 + delta_p, 1);
+	_DnaControlPoints[id1] = float4(pos1 - delta_p, 1);
+}
+
+#pragma kernel CSAngularConstraint
+
+uniform	float _DistanceMin;
+
+// Angular Contraints
+[numthreads(16,1,1)]
+void CSAngularConstraint (uint3 id : SV_DispatchThreadID)
+{
+	int id0 = id.x * 4 + _Offset;
+	int id1 = id0 + 2; 
+
+	if(id1 >= _NumControlPoints) return;
+
+	float distanceMin = _DistanceMin;
+
+	float3 pos0 = _DnaControlPoints[id0].xyz;
+	float3 pos1 = _DnaControlPoints[id1].xyz;
+
+	float3 diff = pos0 - pos1;
+	float3 dir = normalize(diff);
+	float delta = max((distanceMin - length(diff)), 0) * 0.5;
+	
+	float3 delta_p = delta * dir;
+
+    _DnaControlPoints[id0] = float4(pos0 + delta_p, 1);
+	_DnaControlPoints[id1] = float4(pos1 - delta_p, 1);
+}

@@ -5,7 +5,7 @@ CGINCLUDE
 #include "UnityCG.cginc"
 #include "Helper.cginc"		
 	
-#define NUM_STEPS_PER_SEGMENT_MAX 32
+#define NUM_STEPS_PER_SEGMENT_MAX 36
 #define NUM_ROOT_POINTS_FLOAT (NUM_STEPS_PER_SEGMENT_MAX / 4)
 
 uniform int _NumSteps;
@@ -16,7 +16,25 @@ uniform float _Scale;
 uniform float _TwistFactor;
 uniform float _SegmentLength;
 
+uniform	StructuredBuffer<float4> _DnaAtoms;
 uniform	StructuredBuffer<float4> _DnaControlPoints;
+
+//--------------------------------------------------------------------------------------
+
+float3 QuaternionTransform( float4 q, float3 v )
+{ 
+	return v + 2.0 * cross(cross(v, q.xyz ) + q.w * v, q.xyz);
+}
+
+float4 QuaternionFromAxisAngle(float3 axis, float angle)
+{
+	float4 q;
+	q.x = axis.x * sin(angle/2);
+	q.y = axis.y * sin(angle/2);
+	q.z = axis.z * sin(angle/2);
+	q.w = cos(angle/2);
+	return q;
+}
 
 float3 CubicInterpolate(float3 y0, float3 y1, float3 y2,float3 y3, float3 mu)
 {
@@ -36,6 +54,37 @@ float3 CubicInterpolate(float3 y0, float3 y1, float3 y2,float3 y3, float3 mu)
    return(a0*mu*mu2 + a1*mu2+a2 * mu+a3);
 }
 
+float3 SquaredLength(float3 v)
+{
+    return ( v.x * v.x + v.y * v.y + v.z * v.z );
+}
+
+float3 Orthogonal(float3 v)
+{
+    float x = abs(v.x);
+    float y = abs(v.y);
+    float z = abs(v.z);
+
+    float3 other = x < y ? (x < z ? float3(1,0,0) : float3(0,0,1) ) : (y < z ? float3(0,1,0) : float3(0,0,1) );
+    return cross(v, other);
+}
+
+float4 GetRotationFromTo(float3 from, float3 to)
+{
+  float k_cos_theta = dot(from, to);
+  float k = sqrt(SquaredLength(from) * SquaredLength(to));
+
+  if (k_cos_theta / k == -1)
+  {
+    // 180 degree rotation around any orthogonal vector
+    return float4(normalize(Orthogonal(from)), 0);
+  }
+
+  return normalize(float4(cross(from, to), k_cos_theta + k));
+}
+
+//--------------------------------------------------------------------------------------
+
 struct vs2ds
 {					
 	int segmentCount : INT0;		
@@ -48,24 +97,23 @@ struct vs2ds
 	float4 rootPoints[NUM_ROOT_POINTS_FLOAT] : FLOAT4;
 };
 
+//--------------------------------------------------------------------------------------
+
 void VS(uint id : SV_VertexID, out vs2ds output)
 {			 
-	float3 pos0 = (id.x > 0) ? _DnaControlPoints[id.x -1].xyz: _DnaControlPoints[id.x].xyz;
-	float3 pos1 = _DnaControlPoints[id.x].xyz;
-	float3 pos2 = _DnaControlPoints[id.x + 1].xyz;
-	float3 pos3 = (id.x < _NumSegments -1) ?_DnaControlPoints[id.x + 2].xyz : _DnaControlPoints[id.x + 1].xyz;
-
-	int numLinearSeachStep = 16;
-	int numBinarySearchStep = 6;
-
-	int stepsCount = 0;
+	int numLinearSeachStep = 4;
+	int numBinarySearchStep = 4;			
 	int numStepsMax = min(_NumSteps, NUM_STEPS_PER_SEGMENT_MAX);	
-	float stepLength = _SegmentLength / (float)numStepsMax;
+	
 	float linearStepSize = 0.5f / numStepsMax;	
-	float interpolationValue = linearStepSize;
+	float stepLength = _SegmentLength / (float)numStepsMax;
+		
+	int controlPointId = id + 1; // The first segment is skipped
 
-	float3 current;	
-	float3 previous = pos1;	
+	float3 pos0 = _DnaControlPoints[controlPointId -1].xyz;
+	float3 pos1 = _DnaControlPoints[controlPointId].xyz;
+	float3 pos2 = _DnaControlPoints[controlPointId + 1].xyz;
+	float3 pos3 = _DnaControlPoints[controlPointId + 2].xyz;
 
 	output.pos0 = pos0;
 	output.pos1 = pos1;
@@ -73,6 +121,17 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.pos3 = pos3;
 	
 	output.rootPoints[0][0] = 0;
+	output.segmentCount = numStepsMax;
+	output.outputSphereCount = numStepsMax * 41;
+
+	/*****/
+
+	// First pass to find out the size of the last interval 
+
+	float3 current;	
+	int stepsCount = 0;
+	float3 previous = pos1;	
+	float interpolationValue = linearStepSize;
 
 	// Find the number of segments
 	while(stepsCount < numStepsMax-1)
@@ -100,9 +159,11 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 		previous = current;
 		interpolationValue += linearStepSize;			
 	}
+		
+	// Second pass with corrected step length to normalize the spacing between each steps 
 			
-	previous = pos1;	
 	stepsCount = 0;
+	previous = pos1;	
 	interpolationValue = linearStepSize;
 	
 	float stepLengthOffset = distance(current, pos2) - stepLength;
@@ -135,10 +196,7 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 		
 		previous = current;
 		interpolationValue += linearStepSize;					
-	}
-
-	output.segmentCount = numStepsMax;
-	output.outputSphereCount = numStepsMax * 8;
+	}	
 }	
 
 //--------------------------------------------------------------------------------------
@@ -167,21 +225,11 @@ vs2ds HS (InputPatch<vs2ds, 1> input, uint ID : SV_OutputControlPointID)
 //--------------------------------------------------------------------------------------
 
 struct ds2gs
-{
-	int cull : INT0;
-	float3 pos : FLOAT30;
-	float3 color : FLOAT31;		
+{	
+	float radius : FLOAT0;
+	float3 color : FLOAT30;		
+	float3 position : FLOAT31;
 };
-
-float4 quaternionFromAxisAngle(float3 axis, float angle)
-{
-	float4 q;
-	q.x = axis.x * sin(angle/2);
-	q.y = axis.y * sin(angle/2);
-	q.z = axis.z * sin(angle/2);
-	q.w = cos(angle/2);
-	return q;
-}
 
 [domain("isoline")]
 void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLocation, out ds2gs output)
@@ -200,46 +248,29 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	
 	// Find end segment pos
 	int endSegmentId = beingSegmentId + 1;	
-	float endSegmentLerp =  (endSegmentId < op[0].segmentCount) ? op[0].rootPoints[endSegmentId / 4][endSegmentId % 4] : 1;
+	float endSegmentLerp =  (endSegmentId < op[0].segmentCount) ? op[0].rootPoints[endSegmentId / 4][endSegmentId % 4] : 1; // if this is the last step use 1 for the lerp value
 	float3 endSegmentPos = CubicInterpolate(op[0].pos0, op[0].pos1, op[0].pos2, op[0].pos3, endSegmentLerp);
-		
-	// Find mid segment
-	float3 diff = endSegmentPos - beginSegmentPos;
-	float3 tangent = normalize(diff);
-	float3 sphereCenter = beginSegmentPos + diff * 0.5;	
-	float middleSegmentLerp = beingSegmentLerp + (endSegmentLerp - beingSegmentLerp) * 0.5;
 	
-	// Find normal at control points
-	float3 n1 = normalize(cross(op[0].pos0 - op[0].pos1, op[0].pos2 - op[0].pos1));	
-	float3 n2 = normalize(cross(op[0].pos1 - op[0].pos2,  op[0].pos3 - op[0].pos2));	
+	// Find mid segment
+	float3 diff = endSegmentPos - beginSegmentPos;	
+	float3 sphereCenter = beginSegmentPos + diff * 0.5;
 
-	// Find othogonal vector
-	//float3 normal2 = normalize(lerp(-n1, n2, middleSegmentLerp));  // Strangly enough all segments that are twister in normal1 are fine in normal2... 		
-	float3 normal = normalize(lerp(n1, n2, middleSegmentLerp)); // interpolate between control points normals			
-	normal = normalize(cross(tangent, normal));		
+	// Find normal
+	float3 tangent = normalize(diff);
+	float3 binormal = normalize(cross(tangent, float3(0,1,0)));
+	float3 normal = normalize(cross(tangent, binormal));
 
-	//// Find previous end segment pos
-	//int pSegmentId = beingSegmentId - 1;	
-	//float plerp = op[0].rootPoints[pSegmentId / 4][pSegmentId % 4];
-	//float3 ppos = CubicInterpolate(op[0].pos0, op[0].pos1, op[0].pos2, op[0].pos3, plerp);
-	//float3 ptangent = beginSegmentPos - ppos;
-	//float3 pnormal = normalize(lerp(n1, n2, plerp)); // interpolate between control points normals			
-	//pnormal = normalize(cross(ptangent, pnormal));					
+	// Do helix rotation
+	float rotationAngle = 3.14 * segmentId * _TwistFactor / 180.0; 
+	float4 q = QuaternionFromAxisAngle(tangent, (_EnableTwist == 1) ? rotationAngle : 0 );		
+	normal = QuaternionTransform(q, normal);	
 
-	// Find othogonal vector
-	//float3 refVector = normalize(float3(0,1,0));
-	//float normal = normalize(cross(tangent, refVector));
-	//normal = normalize(cross(tangent, normal));	
+	// Find atom position
+	float centerOffset = (atomId - 20) * 0.4;
+	output.position = sphereCenter + (normal * centerOffset) * _Scale; 
 
-	// Do rotation
-	float rotationAngle = 3.14 * segmentId * _TwistFactor / 180.0; // 3.14 * atomId * 10 / 180.0; 
-	float4 q = quaternionFromAxisAngle(tangent, (_EnableTwist == 1) ? rotationAngle : 0 );		
-	normal = qtransform(q, normal);	
-			
-	float centerOffset = (atomId - 4) * 0.25;
-	output.pos = (sphereCenter + normal * centerOffset) * _Scale; 
-	output.color = float3(1, beingSegmentLerp, 0);
-	output.cull = (y >= input.tessFactor[0] || sphereId >= op[0].outputSphereCount) ? 1 : 0; // Discard unwanted spheres		
+	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].outputSphereCount) ? 0 : 1; // Discard unwanted spheres	
+	output.color = float3(1, endSegmentLerp, 0);			
 }
 
 //--------------------------------------------------------------------------------------
@@ -247,19 +278,19 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 struct gs2fs
 {				
 	float2 uv: TEXCOORD0;	
-	centroid float4 pos : SV_Position;	
 	nointerpolation float radius : FLOAT0;	
 	nointerpolation float3 color : FLOAT30;		
+	centroid float4 position : SV_Position;	
 };
 							
 [maxvertexcount(3)]
 void GS(point ds2gs input[1], inout TriangleStream<gs2fs> triangleStream)
 {	
-	if(input[0].cull == 1) return;	
+	if(input[0].radius <= 0) return;	
 		
-	float radius = 0.25 * _Scale;
+	float radius = input[0].radius * _Scale;
 
-	float4 pos = mul(UNITY_MATRIX_MVP, float4(input[0].pos, 1));
+	float4 position = mul(UNITY_MATRIX_MVP, float4(input[0].position, 1));
 	float4 offset = mul(UNITY_MATRIX_P, float4(radius, radius, 0, 0));
 
 	//*****//
@@ -274,15 +305,15 @@ void GS(point ds2gs input[1], inout TriangleStream<gs2fs> triangleStream)
 	output.radius = radius;
 
 	output.uv = float2(0, 0) - triOffset;
-	output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+	output.position = position + float4(output.uv * offset.xy, 0, 0);
 	triangleStream.Append(output);
 
 	output.uv = float2(triBaseHalf, triHeigth) - triOffset;
-	output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+	output.position = position + float4(output.uv * offset.xy, 0, 0);
 	triangleStream.Append(output);	
 								
 	output.uv = float2(triBase,0) - triOffset;
-	output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+	output.position = position + float4(output.uv * offset.xy, 0, 0);
 	triangleStream.Append(output);
 }
 
@@ -301,10 +332,13 @@ void FS (gs2fs input, out float4 color : COLOR0, out float depth : sv_depthgreat
 	color = float4(input.color, 1);				
 
 	// Find depth
-	float eyeDepth = LinearEyeDepth(input.pos.z) + input.radius * (1-normal.z);
+	float eyeDepth = LinearEyeDepth(input.position.z) + input.radius * (1-normal.z);
 	depth = 1 / (eyeDepth * _ZBufferParams.z) - _ZBufferParams.w / _ZBufferParams.z;			
 }
+
 ENDCG
+
+//--------------------------------------------------------------------------------------
 
 Shader "Custom/RenderDNA" 
 {	

@@ -9,7 +9,7 @@ public static class CellPackLoader
 {
    public static void LoadScene()
     {
-        SceneManager.Instance.LoadDnaControlPoints();
+        SceneManager.Instance.LoadDna();
         SceneManager.Instance.UploadAllData();
     }
 

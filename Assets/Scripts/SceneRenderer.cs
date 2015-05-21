@@ -151,9 +151,10 @@ public class SceneRenderer : MonoBehaviour
         _renderDnaMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
         _renderDnaMaterial.SetFloat("_SegmentLength", DisplaySettings.Instance.DistanceContraint);
         _renderDnaMaterial.SetFloat("_TwistFactor", DisplaySettings.Instance.TwistFactor);
+        _renderDnaMaterial.SetBuffer("_DnaAtoms", ComputeBufferManager.Instance.DnaAtoms);
         _renderDnaMaterial.SetBuffer("_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
         _renderDnaMaterial.SetPass(0);
-        Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumDnaControlPoints - 1);
+        Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumDnaSegments - 2); // Do not draw first and last segments
 
         // Do final compositing with current camera textures
         _compositeMaterial.SetTexture("_ColorTexture", colorBuffer);

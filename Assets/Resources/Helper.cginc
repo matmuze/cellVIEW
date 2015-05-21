@@ -100,12 +100,4 @@ float3 OffsetHSL(float3 color, float3 offset)
 	return 	HSLtoRGB(c + offset);		
 }
 
-//*****//			
-
-float3 qtransform( float4 q, float3 v )
-{ 
-	return v + 2.0 * cross(cross(v, q.xyz ) + q.w * v, q.xyz);
-}
-
-//*****//
 		

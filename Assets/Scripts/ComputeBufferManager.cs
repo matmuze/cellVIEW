@@ -4,7 +4,8 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class ComputeBufferManager : MonoBehaviour
 {
-    public ComputeBuffer DnaControlPoints;	
+    public ComputeBuffer DnaAtoms;	
+    public ComputeBuffer DnaControlPoints;
 
     //*****//
 
@@ -45,12 +46,14 @@ public class ComputeBufferManager : MonoBehaviour
     void InitBuffers ()
     {
         // Dna control points
+        if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(SceneManager.NumDnaAtomsMax, 16);
         if (DnaControlPoints == null) DnaControlPoints = new ComputeBuffer(SceneManager.NumDnaControlPointsMax, 16);
 	}
 	
 	// Update is called once per frame
 	void ReleaseBuffers ()
     {
+        if (DnaAtoms != null) { DnaAtoms.Release(); DnaAtoms = null; }
         if (DnaControlPoints != null) { DnaControlPoints.Release(); DnaControlPoints = null; }
 	}
 }

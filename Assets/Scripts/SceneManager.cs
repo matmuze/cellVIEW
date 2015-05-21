@@ -9,13 +9,20 @@ public class SceneManager : MonoBehaviour
     //*****//
     
     public const int NumDnaControlPointsMax = 1000000;
+    public const int NumDnaAtomsMax = 1000;
 
     // Dna data
+    public List<Vector4> DnaAtoms = new List<Vector4>();
     public List<Vector4> DnaControlPoints = new List<Vector4>();
 
     public int NumDnaControlPoints
     {
         get { return DnaControlPoints.Count; }
+    }
+
+    public int NumDnaSegments
+    {
+        get { return DnaControlPoints.Count - 1; }
     }
 
     //*****//
@@ -51,19 +58,24 @@ public class SceneManager : MonoBehaviour
         _instance.UploadAllData();
     }
 
-    public void LoadDnaControlPoints()
+    public void LoadDna()
     {
         DnaControlPoints.Add(Vector4.zero);
 
-        for (int i = 0; i < 25; i++)
+        for (int i = 0; i < 10000; i++)
         {
             var rand = UnityEngine.Random.onUnitSphere;
-            var newc = DnaControlPoints.Last() + new Vector4(rand.x, rand.y, rand.z, 0) * DisplaySettings.Instance.DistanceContraint;
+            var newc = DnaControlPoints.Last() + new Vector4(rand.x, rand.y, rand.z, 0) * DisplaySettings.Instance.DistanceContraint * 0.5f;
             DnaControlPoints.Add(newc);
         }
 
         var bounds = PdbLoader.GetBounds(DnaControlPoints);
         PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+
+        var atoms = PdbLoader.ReadPdbFile(PdbLoader.GetPdbFilePath("b-basepair"));
+        var atomBounds = PdbLoader.GetBounds(atoms);
+        PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
+        DnaAtoms.AddRange(atoms);
     }
 
     //--------------------------------------------------------------------------------------
@@ -145,12 +157,14 @@ public class SceneManager : MonoBehaviour
     public void ClearScene()
     {
         Debug.Log("Clear scene");
+        DnaAtoms.Clear();
         DnaControlPoints.Clear();
     }
 
     public void UploadAllData()
     {
         // Upload Dna data
+        ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
         ComputeBufferManager.Instance.DnaControlPoints.SetData(DnaControlPoints.ToArray());
     }
 }

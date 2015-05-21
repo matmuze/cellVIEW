@@ -54,41 +54,13 @@ float3 CubicInterpolate(float3 y0, float3 y1, float3 y2,float3 y3, float3 mu)
    return(a0*mu*mu2 + a1*mu2+a2 * mu+a3);
 }
 
-float3 SquaredLength(float3 v)
-{
-    return ( v.x * v.x + v.y * v.y + v.z * v.z );
-}
-
-float3 Orthogonal(float3 v)
-{
-    float x = abs(v.x);
-    float y = abs(v.y);
-    float z = abs(v.z);
-
-    float3 other = x < y ? (x < z ? float3(1,0,0) : float3(0,0,1) ) : (y < z ? float3(0,1,0) : float3(0,0,1) );
-    return cross(v, other);
-}
-
-float4 GetRotationFromTo(float3 from, float3 to)
-{
-  float k_cos_theta = dot(from, to);
-  float k = sqrt(SquaredLength(from) * SquaredLength(to));
-
-  if (k_cos_theta / k == -1)
-  {
-    // 180 degree rotation around any orthogonal vector
-    return float4(normalize(Orthogonal(from)), 0);
-  }
-
-  return normalize(float4(cross(from, to), k_cos_theta + k));
-}
-
 //--------------------------------------------------------------------------------------
 
 struct vs2ds
 {					
 	int segmentCount : INT0;		
-	int outputSphereCount : INT1;		
+	int localSphereCount : INT1;		
+	int globalSphereCount : INT2;		
 		
 	float3 pos0 : FLOAT30;
 	float3 pos1 : FLOAT31;
@@ -122,7 +94,8 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	
 	output.rootPoints[0][0] = 0;
 	output.segmentCount = numStepsMax;
-	output.outputSphereCount = numStepsMax * 41;
+	output.localSphereCount = 41;
+	output.globalSphereCount = numStepsMax * output.localSphereCount;
 
 	/*****/
 
@@ -208,7 +181,7 @@ struct hsConst
 
 void HSConst(InputPatch<vs2ds, 1> input, uint patchID : SV_PrimitiveID, out hsConst output)
 {
-	output.tessFactor[0] = output.tessFactor[1] = ( input[0].outputSphereCount <= 0 ) ? 0 : ceil(sqrt(input[0].outputSphereCount));									
+	output.tessFactor[0] = output.tessFactor[1] = ( input[0].globalSphereCount <= 0 ) ? 0 : ceil(sqrt(input[0].globalSphereCount));									
 	return;
 }
 
@@ -253,24 +226,69 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	
 	// Find mid segment
 	float3 diff = endSegmentPos - beginSegmentPos;	
-	float3 sphereCenter = beginSegmentPos + diff * 0.5;
-
-	// Find normal
 	float3 tangent = normalize(diff);
-	float3 binormal = normalize(cross(tangent, float3(0,1,0)));
-	float3 normal = normalize(cross(tangent, binormal));
+	float3 sphereOffset = beginSegmentPos + diff * 0.5;	
+	float midsegmentLerp = endSegmentLerp + (endSegmentLerp - endSegmentLerp) * 0.5;
 
-	// Do helix rotation
+	// Find normal at control points
+	float3 n1 = normalize(cross(op[0].pos0 - op[0].pos1, op[0].pos2 - op[0].pos1));	
+	float3 n2 = normalize(cross(op[0].pos1 - op[0].pos2,  op[0].pos3 - op[0].pos2));	
+
+	// Find binormal
+	float3 crossDirection = float3(0,1,0);	
+	float3 binormal = normalize(lerp(n1, n2, beingSegmentLerp));		
+	//float3 binormal = normalize(cross(tangent, crossDirection));		
+		
+	// Do helix rotation of the binormal arround the tangent
 	float rotationAngle = 3.14 * segmentId * _TwistFactor / 180.0; 
 	float4 q = QuaternionFromAxisAngle(tangent, (_EnableTwist == 1) ? rotationAngle : 0 );		
-	normal = QuaternionTransform(q, normal);	
+	binormal = QuaternionTransform(q, binormal);	
+		
+	// Find normal
+	float3 normal = normalize(cross(tangent, binormal));
 
-	// Find atom position
-	float centerOffset = (atomId - 20) * 0.4;
-	output.position = sphereCenter + (normal * centerOffset) * _Scale; 
+	// Get rotation to align with the normal
+	float3 from = float3(0,1,0);	// Assuming that the nucleotide is pointing in the up direction
+	float3 to = normal;	
+    float3 axis = -normalize(cross(from, to));
+	float cos_theta = dot(normalize(from), normalize(to));
+    float angle = acos(cos_theta);
+    float4 quat = QuaternionFromAxisAngle(axis, angle);
+	
+	// Get rotation to align with the binormal
+	float3 from2 = QuaternionTransform(quat, float3(1,0,0));	
+	float3 to2 = binormal;	
+    float3 axis2 = -normalize(cross(from2, to2));
+	float cos_theta2 = dot(normalize(from2), normalize(to2));
+    float angle2 = acos(cos_theta2);
+    float4 quat2 = QuaternionFromAxisAngle(axis2, angle2);
+	
+	// Use this to draw the coordinate frame for debug
+	//float3 sphereCenter;	
+	//int halfSphereCount = op[0].localSphereCount * 0.5;
+	//float hdd = atomId - halfSphereCount;
+			
+	//if(hdd < 0)
+	//{
+	//	float t = abs(hdd) / halfSphereCount;
+	//	sphereCenter = float3(1,0,0) * t * 1;
+	//}
+	//else
+	//{
+	//	float t = abs(hdd) / halfSphereCount;
+	//	sphereCenter = float3(0,1,0) * t * 1;
+	//}
 
-	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].outputSphereCount) ? 0 : 1; // Discard unwanted spheres	
-	output.color = float3(1, endSegmentLerp, 0);			
+	// Fetch nucleotid atoms
+	float4 sphereCenter = _DnaAtoms[atomId];	
+		
+	sphereCenter.xyz = QuaternionTransform(quat, sphereCenter.xyz);
+	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);	
+
+	output.position = sphereOffset + sphereCenter * _Scale; 
+	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphereCenter.w * 1.2; // Discard unwanted spheres	
+	//output.color = float3(1, endSegmentLerp, ((float)atomId / 41.0f));	// Debug colors		
+	output.color = float3(1,0.8,0.8);
 }
 
 //--------------------------------------------------------------------------------------
@@ -328,7 +346,7 @@ void FS (gs2fs input, out float4 color : COLOR0, out float depth : sv_depthgreat
 	float3 normal = normalize(float3(input.uv, sqrt(1.0 - lensqr)));		
 		
 	// Find color
-	//float ndotl = pow(max( 0.0, dot(float3(0,0,1), normal)),1); //, 0.15 * input.lambertFalloff);						
+	//float ndotl = pow(max( 0.0, dot(float3(0,0,1), normal)),0.1); //, 0.15 * input.lambertFalloff);						
 	color = float4(input.color, 1);				
 
 	// Find depth

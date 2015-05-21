@@ -123,12 +123,14 @@ public static class PdbLoader
         {
             if (line.StartsWith("ATOM"))// || line.StartsWith("HETATM"))
             {
+                var l = line.Length;
+
                 var x = float.Parse(line.Substring(30, 8));
                 var y = float.Parse(line.Substring(38, 8));
-                var z = float.Parse(line.Substring(46, 8));
+                var z = float.Parse(line.Substring(46, (l < 46 + 8) ? 8 : l - 46));
 
-                var atomSymbol = line.Substring(76, 2).Trim();
-                //var atomSymbol = line.Substring(13, 1).Trim();
+                //var atomSymbol = line.Substring(76, 2).Trim();
+                var atomSymbol = line.Substring(13, 1).Trim();
                 var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
                 if (symbolId < 0)
                 {
@@ -138,7 +140,6 @@ public static class PdbLoader
                 }
                 
                 //should use -Z pdb are right-handed
-                //var atom = new Vector4(-x, y, z, symbolId);
                 var atom = new Vector4(-x, y, z, AtomRadii[symbolId]);
                 atoms.Add(atom);
             }

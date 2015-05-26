@@ -1,0 +1,66 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#define MAX_SUBINSTANCE_SIZE 4096
+
+uniform	float _Scale;
+uniform int _EnableLod;
+uniform	int _NumLevels;
+uniform	int _NumInstances;
+uniform float4 _CameraForward;
+uniform float4 _CameraPosition;
+uniform float4 _LodLevelsInfos[4];
+
+uniform	StructuredBuffer<int> _InstanceTypes;
+uniform	StructuredBuffer<int> _InstanceStates;
+uniform	StructuredBuffer<int> _InstanceCullFlags;
+uniform	StructuredBuffer<float4> _InstancePositions;
+
+uniform	StructuredBuffer<int> _IngredientAtomCount;
+uniform	StructuredBuffer<int> _IngredientAtomStart;
+uniform	StructuredBuffer<float4> _IngredientClusterCount;
+uniform	StructuredBuffer<float4> _IngredientClusterStart;
+
+uniform AppendStructuredBuffer<float4> _SubInstanceInformations;	
+
+[numthreads(8,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+	if(id.x >= (uint)_NumInstances || _InstanceStates[id.x] == -1 || _InstanceCullFlags[id.x] == 1) return;
+	
+	int type = _InstanceTypes[id.x];	
+	float3 position = _InstancePositions[id.x].xyz * _Scale;	
+	float cameraDistance = dot(position - _CameraPosition.xyz, _CameraForward.xyz);
+	
+	int lodLevel = 0;	
+	int endLoop = (_EnableLod == 0) ? 0 : _NumLevels -1;
+				
+	for(int i = 0; i < endLoop; i++) 
+	{ 
+		lodLevel = cameraDistance < _LodLevelsInfos[i][0] ? lodLevel : i+1;
+	}	
+
+	int clusterLevel = max(lodLevel - 1, 0);
+	int sphereCount = (lodLevel == 0) ? _IngredientAtomCount[type] : _IngredientClusterCount[type][clusterLevel];
+	int sphereStart = (lodLevel == 0) ? _IngredientAtomStart[type] : _IngredientClusterStart[type][clusterLevel];
+	int numSubInstances = ceil((float)sphereCount / (float)MAX_SUBINSTANCE_SIZE);
+	
+	if(numSubInstances > 1)
+	{		
+		int sphereCountPerSubInstance = ceil(float(sphereCount) / float(numSubInstances));
+
+		int subInstanceSphereStart = 0;
+		int subInstanceSphereCount = sphereCountPerSubInstance;		
+
+		for(int i = 0; i < numSubInstances; i ++)
+		{
+			subInstanceSphereCount = min(subInstanceSphereStart + sphereCountPerSubInstance, sphereCount) - subInstanceSphereStart;			
+			_SubInstanceInformations.Append(float4(id.x, lodLevel, subInstanceSphereCount, sphereStart + subInstanceSphereStart));
+			subInstanceSphereStart += subInstanceSphereCount;
+		}
+	}	
+	else
+	{
+		_SubInstanceInformations.Append(float4(id.x, lodLevel, sphereCount, sphereStart));
+	}
+}

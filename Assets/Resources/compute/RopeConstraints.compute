@@ -1,0 +1,120 @@
+﻿uniform	int _Offset;
+uniform	int _NumControlPoints;
+uniform	RWStructuredBuffer<float4> _DnaControlPoints;
+
+//could be made in several iterations using shared memory
+
+#pragma kernel CSDistanceConstraint
+
+uniform	float _DistanceMax;
+
+// Distance Contraints
+[numthreads(16,1,1)]
+void CSDistanceConstraint (uint3 id : SV_DispatchThreadID)
+{
+    int id0 = id.x * 2 + _Offset;
+	int id1 = id0 + 1; 
+		
+	if(id1 >= _NumControlPoints) return;
+
+	float distanceMax = _DistanceMax;
+
+	float3 pos0 = _DnaControlPoints[id0].xyz;
+	float3 pos1 = _DnaControlPoints[id1].xyz;
+
+	float3 diff = pos0 - pos1;
+	float3 dir = normalize(diff);
+	float delta = (distanceMax - length(diff)) * 0.1;
+	
+	float3 delta_p = delta * dir;
+
+    _DnaControlPoints[id0] = float4(pos0 + delta_p, 1);
+	_DnaControlPoints[id1] = float4(pos1 - delta_p, 1);
+}
+
+#pragma kernel CsBendingConstraint
+
+uniform	float _DistanceMin;
+
+// Bending Contraints
+[numthreads(16,1,1)]
+void CsBendingConstraint (uint3 id : SV_DispatchThreadID)
+{
+	int id0 = id.x * 4 + _Offset;
+	int id1 = id0 + 2; 
+
+	if(id1 >= _NumControlPoints) return;
+
+	float distanceMin = _DistanceMin;
+
+	float3 pos0 = _DnaControlPoints[id0].xyz;
+	float3 pos1 = _DnaControlPoints[id1].xyz;
+
+	float3 diff = pos0 - pos1;
+	float3 dir = normalize(diff);
+	float delta = max((distanceMin - length(diff)), 0) * 0.5;
+	
+	float3 delta_p = delta * dir;
+
+    _DnaControlPoints[id0] = float4(pos0 + delta_p, 1);
+	_DnaControlPoints[id1] = float4(pos1 - delta_p, 1);
+}
+
+#pragma kernel CsTwistingConstraint
+
+uniform	StructuredBuffer<float4> _DnaControlPointsPosition;
+uniform	RWStructuredBuffer<float4> _DnaControlPointsNormal;
+
+float4 QuaternionFromAxisAngle(float3 axis, float angle)
+{
+	float4 q;
+	q.x = axis.x * sin(angle/2);
+	q.y = axis.y * sin(angle/2);
+	q.z = axis.z * sin(angle/2);
+	q.w = cos(angle/2);
+	return q;
+}
+
+float3 QuaternionTransform( float4 q, float3 v )
+{ 
+	return v + 2.0 * cross(cross(v, q.xyz ) + q.w * v, q.xyz);
+}
+
+// Twisting Contraints
+[numthreads(16,1,1)]
+void CsTwistingConstraint (uint3 id : SV_DispatchThreadID)
+{
+	float3 pos0 = _DnaControlPointsPosition[id.x].xyz;
+	float3 pos1 = _DnaControlPointsPosition[id.x + 1].xyz;
+	float3 pos2 = _DnaControlPointsPosition[id.x + 2].xyz;
+	
+	if((int)id.x + 2 >= _NumControlPoints) return;
+
+	// Find normal at control points
+	float3 normal = normalize(cross(pos0 - pos1, pos2 - pos1));			
+	_DnaControlPointsNormal[id.x + 1] = float4(normal, 0);
+}
+
+//// Twisting Contraints
+//[numthreads(16,1,1)]
+//void CsTwistingConstraint (uint3 id : SV_DispatchThreadID)
+//{
+//	// Find normal at control points
+//	int sizeofGroup = 1;
+//	int groupId = id / sizeofGroup;
+//	int bucketId = id % sizeofGroup;
+//	int bucketElementId = groupId * sizeofGroup * 2 + sizeofGroup + bucketId;
+//	int elementReferenceId = firstGroupElementId -1 ;
+
+	
+//	float3 bucketElement = _DnaControlPointsNormal[firstGroupElementId];
+//	float3 elementReference = _DnaControlPointsNormal[elementReferenceId];
+
+//	float dotp = dot(elementReference, firstGroupElement);
+//	if(abs(dotp) > 0.5 ) 
+//	{
+//		n2 = - n2;
+//	}
+	
+//    _DnaControlPointsNormal[firstGroupElement] = float4(n2, 0);
+//}

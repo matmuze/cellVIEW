@@ -203,7 +203,7 @@ public class SceneManager : MonoBehaviour
         var currentPointId = 1;
         var currentPosition = controlPoints[currentPointId];
 
-        float distance = 10.0f;
+        float distance = DisplaySettings.Instance.DistanceContraint;
         float lerpValue = 0.0f;
 
         // Normalize the distance between control points

@@ -16,13 +16,17 @@ public class SceneManager : MonoBehaviour
 
     public const int NumLodLevels = 2;
     public const int NumAtomMax = 1000000;          // Used for GPU buffer memory allocation
-    public const int NumInstancesMax = 15000;       // Used for GPU buffer memory allocation
     public const int NumIngredientsMax = 1000;      // Used for GPU buffer memory allocation
+
+    public const int NumProteinInstancesMax = 15000;       // Used for GPU buffer memory allocation
     public const int NumProteinSphereBatchesMax = 30000;   // Used for GPU buffer memory allocation
 
     public const int NumLipidAtomMax = 8000000;     // Used for GPU buffer memory allocation
     public const int NumLipidInstancesMax = 300000; // Used for GPU buffer memory allocation
-    
+
+    public const int NumDnaControlPointsMax = 1000000;
+    public const int NumDnaAtomsMax = 1000;
+
     // Scene data
     public List<int> InstanceTypes = new List<int>();
     public List<int> InstanceStates = new List<int>();
@@ -50,6 +54,10 @@ public class SceneManager : MonoBehaviour
     public List<Vector4> LipidSphereBatchInfos = new List<Vector4>();
     public List<Vector4> LipidInstancePositions = new List<Vector4>();
 
+    // Dna data
+    public List<Vector4> DnaAtoms = new List<Vector4>();
+    public List<Vector4> DnaControlPoints = new List<Vector4>();
+
     public int NumProteinInstances
     {
         get { return InstancePositions.Count; }
@@ -58,6 +66,16 @@ public class SceneManager : MonoBehaviour
     public int NumLipidInstances
     {
         get { return LipidInstancePositions.Count; }
+    }
+
+    public int NumDnaControlPoints
+    {
+        get { return DnaControlPoints.Count; }
+    }
+
+    public int NumDnaSegments
+    {
+        get { return DnaControlPoints.Count - 1; }
     }
 
     //*****//
@@ -97,7 +115,7 @@ public class SceneManager : MonoBehaviour
     {
         if (IngredientNames.Contains(ingredientName)) return;
 
-        IngredientToggleFlags.Add(1);
+        //IngredientToggleFlags.Add(1);
         IngredientNames.Add(ingredientName);
         IngredientsColors.Add(Helper.GetRandomColor());
         IngredientBoundingSpheres.Add(Vector3.Magnitude(bounds.extents));
@@ -174,6 +192,65 @@ public class SceneManager : MonoBehaviour
         }
 
         LipidAtomPositions.AddRange(membraneAtoms);
+    }
+    
+    public void LoadRna(List<Vector4> controlPoints)
+    {
+        var normalizedCp = new List<Vector4>();
+        normalizedCp.Add(controlPoints[0]);
+        normalizedCp.Add(controlPoints[1]);
+
+        var currentPointId = 1;
+        var currentPosition = controlPoints[currentPointId];
+
+        float distance = 10.0f;
+        float lerpValue = 0.0f;
+
+        // Normalize the distance between control points
+        while (true)
+        {
+            if (currentPointId + 2 >= controlPoints.Count) break;
+
+            var cp0 = controlPoints[currentPointId - 1];
+            var cp1 = controlPoints[currentPointId];
+            var cp2 = controlPoints[currentPointId + 1];
+            var cp3 = controlPoints[currentPointId + 2];
+
+            var found = false;
+
+            for (; lerpValue <= 1; lerpValue += 0.01f)
+            {
+                var candidate = Helper.CubicInterpolate(cp0, cp1, cp2, cp3, lerpValue);
+                var d = Vector3.Distance(currentPosition, candidate);
+
+                if (d > distance)
+                {
+                    normalizedCp.Add(candidate);
+                    currentPosition = candidate;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                lerpValue = 0;
+                currentPointId++;
+            }
+        }
+
+        DnaControlPoints.AddRange(normalizedCp);
+        //DnaControlPoints.AddRange(controlPoints);
+
+        Debug.Log(normalizedCp.Count);
+
+        //var bounds = PdbLoader.GetBounds(DnaControlPoints);
+        //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+
+        var atoms = PdbLoader.ReadPdbFile(PdbLoader.GetPdbFilePath("basesingle"));
+        //var atomBounds = PdbLoader.GetBounds(atoms);
+        //PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
+        DnaAtoms.AddRange(atoms);
     }
 
     //--------------------------------------------------------------------------------------
@@ -265,7 +342,7 @@ public class SceneManager : MonoBehaviour
         // Clear ingredient data
         IngredientNames.Clear();
         IngredientsColors.Clear();
-        IngredientToggleFlags.Clear();
+        //IngredientToggleFlags.Clear();
         IngredientBoundingSpheres.Clear();
         
         // Clear atom data
@@ -282,6 +359,10 @@ public class SceneManager : MonoBehaviour
         LipidAtomPositions.Clear();
         LipidInstancePositions.Clear();
         LipidSphereBatchInfos.Clear();
+
+        // Clear dna data
+        DnaAtoms.Clear();
+        DnaControlPoints.Clear();
     }
 
     public void UploadAllData()
@@ -311,6 +392,10 @@ public class SceneManager : MonoBehaviour
         ComputeBufferManager.Instance.LipidAtomPositions.SetData(LipidAtomPositions.ToArray());
         ComputeBufferManager.Instance.LipidInstancePositions.SetData(LipidInstancePositions.ToArray());
         ComputeBufferManager.Instance.LipidSphereBatchInfos.SetData(LipidSphereBatchInfos.ToArray());
+
+        // Upload Dna data
+        ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
+        ComputeBufferManager.Instance.DnaControlPoints.SetData(DnaControlPoints.ToArray());
     }
     
     public void UploadSceneData()
@@ -324,6 +409,6 @@ public class SceneManager : MonoBehaviour
     public void UploadIngredientToggleData()
     {
         ComputeBufferManager.Instance.IngredientToggleFlags.SetData(IngredientToggleFlags.ToArray());
-    }
+    }  
 
 }

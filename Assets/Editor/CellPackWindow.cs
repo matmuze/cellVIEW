@@ -7,11 +7,11 @@ using UnityEngine;
 
 public class CellPackWindow : EditorWindow
 {
-    [MenuItem("cellPACK/Compute PDB clusters")]
-    public static void Foo()
-    {
-        CellPackLoader.ComputeClusters();
-    }
+    //[MenuItem("cellPACK/Compute PDB clusters")]
+    //public static void Foo()
+    //{
+    //    CellPackLoader.ComputeClusters();
+    //}
 
     //[MenuItem("cellPACK/Bar")]
     //public static void Bar()
@@ -103,6 +103,18 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.EnableShadows = EditorGUILayout.Toggle("Enable Shadows", DisplaySettings.Instance.EnableShadows);
                     DisplaySettings.Instance.EnableOcclusionCulling = EditorGUILayout.Toggle("Enable Object Culling", DisplaySettings.Instance.EnableOcclusionCulling);
                     DisplaySettings.Instance.DebugObjectCulling = EditorGUILayout.Toggle("Debug Object Culling", DisplaySettings.Instance.DebugObjectCulling);
+                    EditorGUI.indentLevel--;
+                    EditorGUILayout.Space();
+
+                    EditorGUILayout.LabelField("Base Settings", EditorStyles.boldLabel);
+                    EditorGUI.indentLevel++;
+                    DisplaySettings.Instance.EnableDNAConstraints = EditorGUILayout.Toggle("Enable DNA Constraints", DisplaySettings.Instance.EnableDNAConstraints);
+                    DisplaySettings.Instance.DistanceContraint = EditorGUILayout.Slider("Distance Constraint", DisplaySettings.Instance.DistanceContraint, 0.01f, 100);
+                    DisplaySettings.Instance.AngularConstraint = EditorGUILayout.Slider("Angular Constraint", DisplaySettings.Instance.AngularConstraint, 0.01f, 100);
+                    DisplaySettings.Instance.NumStepsPerSegment = EditorGUILayout.IntField("Num Steps Per Segment", DisplaySettings.Instance.NumStepsPerSegment);
+
+                    DisplaySettings.Instance.EnableTwist = EditorGUILayout.Toggle("Enable Twist", DisplaySettings.Instance.EnableTwist);
+                    DisplaySettings.Instance.TwistFactor = EditorGUILayout.Slider("Twist Factor", DisplaySettings.Instance.TwistFactor, 0.01f, 100);
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
 

@@ -129,6 +129,19 @@ public static class Helper
         return euler;
     }
 
+    public static Vector3 CubicInterpolate(Vector3 y0, Vector3 y1, Vector3 y2, Vector3 y3, float mu)
+    {
+        float mu2 = mu * mu;
+        Vector3 a0, a1, a2, a3;
+
+        a0 = y3 - y2 - y0 + y1;
+        a1 = y0 - y1 - a0;
+        a2 = y2 - y0;
+        a3 = y1;
+
+        return (a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3);
+    }
+
     public static Quaternion MayaRotationToUnity(Vector3 rotation)
     {
         var flippedRotation = new Vector3(rotation.x, -rotation.y, -rotation.z); // flip Y and Z axis for right->left handed conversion

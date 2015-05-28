@@ -16,20 +16,6 @@ uniform float3 _CameraForward;
 uniform int _FirstLevelBeingRange;
 uniform float4x4 _LodLevelsInfos;
 
-uniform	StructuredBuffer<int> _InstanceTypes;
-uniform	StructuredBuffer<int> _InstanceStates;
-uniform	StructuredBuffer<float4> _InstancePositions;
-uniform	StructuredBuffer<float4> _InstanceRotations;
-						
-uniform StructuredBuffer<float4> _IngredientColors;	
-uniform StructuredBuffer<float4> _ProteinAtomPositions;	
-uniform StructuredBuffer<float4> _ProteinClusterPositions;	
-uniform StructuredBuffer<float4> _ProteinSphereBatchInfos;	
-					
-uniform StructuredBuffer<float4> _LipidAtomPositions;		
-uniform StructuredBuffer<float4> _LipidSphereBatchInfos;	
-uniform StructuredBuffer<float4> _LipidInstancePositions;	
-
 //--------------------------------------------------------------------------------------
 
 struct LodInfo

@@ -1,11 +1,11 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 
-uniform int _ClearValue;
-RWStructuredBuffer<int> _SubInstanceCullFlags;
+uniform int _Value;
+RWStructuredBuffer<int> _Buffer;
 
-[numthreads(64,1,1)]
+[numthreads(8,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    _SubInstanceCullFlags[id.x] = _ClearValue;
+    _Buffer[id.x] = _Value;
 }

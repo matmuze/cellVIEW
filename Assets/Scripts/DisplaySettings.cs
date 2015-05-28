@@ -12,6 +12,14 @@ public class DisplaySettings : MonoBehaviour
     public bool EnableOcclusionCulling;
     public bool DebugObjectCulling;
 
+    //DNA/RNA settings
+    public bool EnableDNAConstraints;
+    public float DistanceContraint;
+    public float AngularConstraint;
+    public int NumStepsPerSegment;
+    public bool EnableTwist;
+    public float TwistFactor;
+
     // Brownian motion
     public bool EnableBrownianMotion;   
 

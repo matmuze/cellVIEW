@@ -6,7 +6,7 @@ public class ComputeBufferManager : MonoBehaviour
 {
     public ComputeBuffer InstanceTypes;
     public ComputeBuffer InstanceStates;
-    public ComputeBuffer InstanceCullFlags;
+    public ComputeBuffer ProteinInstanceCullFlags;
     public ComputeBuffer InstancePositions;
     public ComputeBuffer InstanceRotations;
     public ComputeBuffer InstanceDisplayPositions;
@@ -27,7 +27,10 @@ public class ComputeBufferManager : MonoBehaviour
 
     public ComputeBuffer LipidAtomPositions;		
     public ComputeBuffer LipidSphereBatchInfos;
-    public ComputeBuffer LipidInstancePositions;	
+    public ComputeBuffer LipidInstancePositions;
+
+    public ComputeBuffer DnaAtoms;
+    public ComputeBuffer DnaControlPoints;
 
     //*****//
 
@@ -68,13 +71,13 @@ public class ComputeBufferManager : MonoBehaviour
     void InitBuffers ()
     {
         // Instance data
-        if (InstanceTypes == null) InstanceTypes = new ComputeBuffer(SceneManager.NumInstancesMax, 4);
-        if (InstanceStates == null) InstanceStates = new ComputeBuffer(SceneManager.NumInstancesMax, 4);
-        if (InstanceCullFlags == null) InstanceCullFlags = new ComputeBuffer(SceneManager.NumInstancesMax, 4);
-        if (InstancePositions == null) InstancePositions = new ComputeBuffer(SceneManager.NumInstancesMax, 16);
-        if (InstanceRotations == null) InstanceRotations = new ComputeBuffer(SceneManager.NumInstancesMax, 16);
-        if (InstanceDisplayPositions == null) InstanceDisplayPositions = new ComputeBuffer(SceneManager.NumInstancesMax, 16);
-        if (InstanceDisplayRotations == null) InstanceDisplayRotations = new ComputeBuffer(SceneManager.NumInstancesMax, 16);
+        if (InstanceTypes == null) InstanceTypes = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 4);
+        if (InstanceStates == null) InstanceStates = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 4);
+        if (ProteinInstanceCullFlags == null) ProteinInstanceCullFlags = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 4);
+        if (InstancePositions == null) InstancePositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (InstanceRotations == null) InstanceRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (InstanceDisplayPositions == null) InstanceDisplayPositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (InstanceDisplayRotations == null) InstanceDisplayRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
 
         if (ProteinSphereBatchInfos == null) ProteinSphereBatchInfos = new ComputeBuffer(SceneManager.NumProteinSphereBatchesMax, 16, ComputeBufferType.Append);
 
@@ -97,6 +100,10 @@ public class ComputeBufferManager : MonoBehaviour
         if (LipidAtomPositions == null) LipidAtomPositions = new ComputeBuffer(SceneManager.NumLipidAtomMax, 16);
         if (LipidSphereBatchInfos == null) LipidSphereBatchInfos = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 16);
         if (LipidInstancePositions == null) LipidInstancePositions = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 16);
+
+        // Dna data
+        if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(SceneManager.NumDnaAtomsMax, 16);
+        if (DnaControlPoints == null) DnaControlPoints = new ComputeBuffer(SceneManager.NumDnaControlPointsMax, 16);
 	}
 	
 	// Update is called once per frame
@@ -104,7 +111,7 @@ public class ComputeBufferManager : MonoBehaviour
     {
         if (InstanceTypes != null) { InstanceTypes.Release(); InstanceTypes = null; }
 	    if (InstanceStates != null) { InstanceStates.Release(); InstanceStates = null; }
-        if (InstanceCullFlags != null) { InstanceCullFlags.Release(); InstanceCullFlags = null; }
+        if (ProteinInstanceCullFlags != null) { ProteinInstanceCullFlags.Release(); ProteinInstanceCullFlags = null; }
 	    if (InstancePositions != null) { InstancePositions.Release(); InstancePositions = null; }
 	    if (InstanceRotations != null) { InstanceRotations.Release(); InstanceRotations = null; }
 	    if (InstanceDisplayPositions != null) { InstanceDisplayPositions.Release(); InstanceDisplayPositions = null; }
@@ -125,5 +132,8 @@ public class ComputeBufferManager : MonoBehaviour
         if (LipidAtomPositions != null) { LipidAtomPositions.Release(); LipidAtomPositions = null; }
         if (LipidSphereBatchInfos != null) { LipidSphereBatchInfos.Release(); LipidSphereBatchInfos = null; }
         if (LipidInstancePositions != null) { LipidInstancePositions.Release(); LipidInstancePositions = null; }
+
+        if (DnaAtoms != null) { DnaAtoms.Release(); DnaAtoms = null; }
+        if (DnaControlPoints != null) { DnaControlPoints.Release(); DnaControlPoints = null; }
 	}
 }

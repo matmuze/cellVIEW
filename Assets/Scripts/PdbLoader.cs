@@ -127,8 +127,16 @@ public static class PdbLoader
                 var y = float.Parse(line.Substring(38, 8));
                 var z = float.Parse(line.Substring(46, 8));
 
-                var atomSymbol = line.Substring(76, 2).Trim();
-                //var atomSymbol = line.Substring(13, 1).Trim();
+                var atomSymbol = "";
+                if (line.Length >= 78)
+                {
+                    atomSymbol = line.Substring(76, 2).Trim();
+                }
+                else
+                {
+                    atomSymbol = line.Substring(13, 1).Trim();
+                }
+                
                 var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
                 if (symbolId < 0)
                 {

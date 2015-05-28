@@ -8,31 +8,36 @@ using UnityEditor;
 [ExecuteInEditMode]
 public class SceneRenderer : MonoBehaviour
 {
-    public Shader FetchDepthShader;
-    public Shader RenderSceneShader;
-    public Shader ObjectContourShader;
+    //public Camera DebugCamera;
+    //public Camera ShadowCamera;
+    //public RenderTexture ShadowMap;
+
+    public Shader ContourShader;
+    public Shader CompositeShader;
+    public Shader RenderDnaShader;
+    public Shader RenderLipidsShader;
+    public Shader RenderProteinsShader;
 
     public ComputeShader ClearBufferCS;
     public ComputeShader CrossSectionCS;
     public ComputeShader BatchInstancesCS;
     public ComputeShader BrownianMotionCS;
     public ComputeShader FrustrumCullingCS;
-    
-    public Camera DebugCamera;
-    public Camera ShadowCamera;
-    public RenderTexture ShadowMap;
+    public ComputeShader RopeConstraintsCS;
 
-    [HideInInspector]
-    public Material RenderSceneMaterial;
+    /*****/
+
+    private Material _contourMaterial;
+    private Material _compositeMaterial;
+    private Material _renderDnaMaterial;
+    private Material _renderLipidsMaterial;
+    private Material _renderProteinsMaterial;
 
     /*****/
 
     private Camera _camera;
     private ComputeBuffer _argBuffer;
-    private RenderTexture _depthBuffer;
-
-    private Material _contourMaterial;
-    private Material _fetchDepthMaterial;
+    private RenderTexture _hizBuffer;
 
     /*****/
 
@@ -49,9 +54,11 @@ public class SceneRenderer : MonoBehaviour
         _camera.depthTextureMode |= DepthTextureMode.Depth;
         _camera.depthTextureMode |= DepthTextureMode.DepthNormals;
 
-        if (RenderSceneMaterial == null) RenderSceneMaterial = new Material(RenderSceneShader) { hideFlags = HideFlags.HideAndDontSave };
-        if (_contourMaterial == null) _contourMaterial = new Material(ObjectContourShader) { hideFlags = HideFlags.HideAndDontSave };
-        if (_fetchDepthMaterial == null) _fetchDepthMaterial = new Material(FetchDepthShader) { hideFlags = HideFlags.HideAndDontSave };
+        if (_renderProteinsMaterial == null) _renderProteinsMaterial = new Material(RenderProteinsShader) { hideFlags = HideFlags.HideAndDontSave };
+        if (_renderLipidsMaterial == null) _renderLipidsMaterial = new Material(RenderLipidsShader) { hideFlags = HideFlags.HideAndDontSave };
+        if (_renderDnaMaterial == null) _renderDnaMaterial = new Material(RenderDnaShader) { hideFlags = HideFlags.HideAndDontSave };
+        if (_compositeMaterial == null) _compositeMaterial = new Material(CompositeShader) { hideFlags = HideFlags.HideAndDontSave };
+        if (_contourMaterial == null) _contourMaterial = new Material(ContourShader) { hideFlags = HideFlags.HideAndDontSave };
 
         if (_argBuffer == null)
         {
@@ -62,15 +69,17 @@ public class SceneRenderer : MonoBehaviour
 
     void OnDisable()
     {
-        if (RenderSceneMaterial != null) DestroyImmediate(RenderSceneMaterial); 
+        if (_renderProteinsMaterial != null) DestroyImmediate(_renderProteinsMaterial);
+        if (_renderLipidsMaterial != null) DestroyImmediate(_renderLipidsMaterial);
+        if (_renderDnaMaterial != null) DestroyImmediate(_renderDnaMaterial);
+        if (_compositeMaterial != null) DestroyImmediate(_compositeMaterial);
         if (_contourMaterial != null) DestroyImmediate(_contourMaterial); 
-        if (_fetchDepthMaterial != null) DestroyImmediate(_fetchDepthMaterial);
         
-        if (_depthBuffer != null)
+        if (_hizBuffer != null)
         {
-            _depthBuffer.Release();
-            DestroyImmediate(_depthBuffer);
-            _depthBuffer = null;
+            _hizBuffer.Release();
+            DestroyImmediate(_hizBuffer);
+            _hizBuffer = null;
         }
 
         if (_argBuffer != null)
@@ -90,33 +99,55 @@ public class SceneRenderer : MonoBehaviour
         }
     }
 
-    void SetRenderSceneShaderParams()
+    void SetShaderParams()
     {
-        RenderSceneMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
-        RenderSceneMaterial.SetVector("_CameraForward", _camera.transform.forward);
-        RenderSceneMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
-        RenderSceneMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
+        // Contour params
+        _contourMaterial.SetInt("_ContourOptions", DisplaySettings.Instance.ContourOptions);
+        _contourMaterial.SetFloat("_ContourStrength", DisplaySettings.Instance.ContourStrength);
 
-        // Instances data
-        RenderSceneMaterial.SetBuffer("_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
-        RenderSceneMaterial.SetBuffer("_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        RenderSceneMaterial.SetBuffer("_InstancePositions", 
+        // Protein params
+        _renderProteinsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        _renderProteinsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
+        _renderProteinsMaterial.SetVector("_CameraForward", _camera.transform.forward);
+        _renderProteinsMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
+
+        _renderProteinsMaterial.SetBuffer("_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
+        _renderProteinsMaterial.SetBuffer("_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
+        _renderProteinsMaterial.SetBuffer("_InstancePositions",
             (DisplaySettings.Instance.EnableBrownianMotion) ?
             ComputeBufferManager.Instance.InstanceDisplayPositions : ComputeBufferManager.Instance.InstancePositions);
-        
-        RenderSceneMaterial.SetBuffer("_InstanceRotations",
+
+        _renderProteinsMaterial.SetBuffer("_InstanceRotations",
             (DisplaySettings.Instance.EnableBrownianMotion) ?
             ComputeBufferManager.Instance.InstanceDisplayRotations : ComputeBufferManager.Instance.InstanceRotations);
+
+        _renderProteinsMaterial.SetBuffer("_ProteinBoundingSpheres", ComputeBufferManager.Instance.IngredientBoundingSpheres);
+        _renderProteinsMaterial.SetBuffer("_ProteinCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
+        _renderProteinsMaterial.SetBuffer("_IngredientColors", ComputeBufferManager.Instance.IngredientColors);
+        _renderProteinsMaterial.SetBuffer("_ProteinAtomPositions", ComputeBufferManager.Instance.ProteinAtomPositions);
+        _renderProteinsMaterial.SetBuffer("_ProteinClusterPositions", ComputeBufferManager.Instance.ProteinClusterPositions);
+        _renderProteinsMaterial.SetBuffer("_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
         
-        RenderSceneMaterial.SetBuffer("_IngredientColors", ComputeBufferManager.Instance.IngredientColors);
-        RenderSceneMaterial.SetBuffer("_ProteinAtomPositions", ComputeBufferManager.Instance.ProteinAtomPositions);
-        RenderSceneMaterial.SetBuffer("_ProteinClusterPositions", ComputeBufferManager.Instance.ProteinClusterPositions);
-        RenderSceneMaterial.SetBuffer("_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
-        
-        // Lipid data
-        RenderSceneMaterial.SetBuffer("_LipidAtomPositions", ComputeBufferManager.Instance.LipidAtomPositions);
-        RenderSceneMaterial.SetBuffer("_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
-        RenderSceneMaterial.SetBuffer("_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
+        // Lipid params
+        _renderLipidsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        _renderLipidsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
+        _renderLipidsMaterial.SetVector("_CameraForward", _camera.transform.forward);
+        _renderLipidsMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
+
+        _renderLipidsMaterial.SetBuffer("_LipidAtomPositions", ComputeBufferManager.Instance.LipidAtomPositions);
+        _renderLipidsMaterial.SetBuffer("_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
+        _renderLipidsMaterial.SetBuffer("_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
+
+        // DNA/RNA data
+        _renderDnaMaterial.SetInt("_NumSteps", DisplaySettings.Instance.NumStepsPerSegment);
+        _renderDnaMaterial.SetInt("_NumSegments", SceneManager.Instance.NumDnaControlPoints - 1);
+        _renderDnaMaterial.SetInt("_EnableTwist", Convert.ToInt32(DisplaySettings.Instance.EnableTwist));
+
+        _renderDnaMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        _renderDnaMaterial.SetFloat("_SegmentLength", DisplaySettings.Instance.DistanceContraint);
+        _renderDnaMaterial.SetFloat("_TwistFactor", DisplaySettings.Instance.TwistFactor);
+        _renderDnaMaterial.SetBuffer("_DnaAtoms", ComputeBufferManager.Instance.DnaAtoms);
+        _renderDnaMaterial.SetBuffer("_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
 
         // Shadow data
         //RenderSceneMaterial.SetInt("_EnableShadows", Convert.ToInt32(DisplaySettings.Instance.EnableShadows));
@@ -130,29 +161,46 @@ public class SceneRenderer : MonoBehaviour
 
     private void OnPostRender()
     {
-        
+        if (!DisplaySettings.Instance.EnableDNAConstraints) return;
+
+        int numSegments = SceneManager.Instance.NumDnaSegments;
+        int numSegmentPairs1 = (int)Mathf.Ceil(numSegments / 2.0f);
+        int numSegmentPairs2 = (int)Mathf.Ceil(numSegments / 4.0f);
+
+        RopeConstraintsCS.SetFloat("_DistanceMin", DisplaySettings.Instance.AngularConstraint);
+        RopeConstraintsCS.SetFloat("_DistanceMax", DisplaySettings.Instance.DistanceContraint);
+        RopeConstraintsCS.SetInt("_NumControlPoints", SceneManager.Instance.NumDnaControlPoints);
+
+        // Do distance constraints
+        RopeConstraintsCS.SetInt("_Offset", 0);
+        RopeConstraintsCS.SetBuffer(0, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        RopeConstraintsCS.Dispatch(0, (int)Mathf.Ceil(numSegmentPairs1 / 16.0f), 1, 1);
+
+        RopeConstraintsCS.SetInt("_Offset", 1);
+        RopeConstraintsCS.SetBuffer(0, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        RopeConstraintsCS.Dispatch(0, (int)Mathf.Ceil(numSegmentPairs1 / 16.0f), 1, 1);
+
+        // Do bending constraints
+        RopeConstraintsCS.SetInt("_Offset", 0);
+        RopeConstraintsCS.SetBuffer(1, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        RopeConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
+
+        RopeConstraintsCS.SetInt("_Offset", 1);
+        RopeConstraintsCS.SetBuffer(1, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        RopeConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
+
+        RopeConstraintsCS.SetInt("_Offset", 2);
+        RopeConstraintsCS.SetBuffer(1, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        RopeConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
+
+        RopeConstraintsCS.SetInt("_Offset", 3);
+        RopeConstraintsCS.SetBuffer(1, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        RopeConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
     }
 
-    [ImageEffectOpaque]
-    void OnRenderImage(RenderTexture src, RenderTexture dst)
+    private void DoCompute()
     {
-        // Return if no instances to draw
-        if (SceneManager.Instance.NumProteinInstances == 0 && SceneManager.Instance.NumLipidInstances == 0) { Graphics.Blit(src, dst); return; }
-        
-        if (_depthBuffer == null || _depthBuffer.width != Screen.width || _depthBuffer.height != Screen.height)
-        {
-            if (_depthBuffer != null)
-            {
-                _depthBuffer.Release();
-                DestroyImmediate(_depthBuffer);
-            }
-
-            _depthBuffer = new RenderTexture(src.width, src.height, 24, RenderTextureFormat.Depth);
-            _depthBuffer.Create();
-        }
-
-        // Maybe this can go with brownian motion, must compute cost before...
-        // Do cross section + filtered visibility
+        // Do cross section + filter selection visibility
         CrossSectionCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
         CrossSectionCS.SetInt("_NumLipidInstances", SceneManager.Instance.NumLipidInstances);
         CrossSectionCS.SetInt("_NumProteinInstances", SceneManager.Instance.NumProteinInstances);
@@ -162,7 +210,7 @@ public class SceneRenderer : MonoBehaviour
         CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.InstancePositions);
         CrossSectionCS.SetBuffer(0, "_IngredientVisibilityFlags", ComputeBufferManager.Instance.IngredientToggleFlags);
         CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
-        
+
         // Do lipid cross section
         CrossSectionCS.SetBuffer(1, "_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
         CrossSectionCS.SetBuffer(1, "_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
@@ -182,6 +230,34 @@ public class SceneRenderer : MonoBehaviour
             // Do lipids
             //BrownianMotionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumInstances / 8.0f), 1, 1);
         }
+    }
+
+    [ImageEffectOpaque]
+    void OnRenderImage(RenderTexture src, RenderTexture dst)
+    {
+        // Return if no instances to draw
+        if (SceneManager.Instance.NumProteinInstances == 0 && SceneManager.Instance.NumLipidInstances == 0 &&
+            SceneManager.Instance.NumDnaSegments == 0)
+        {
+            Graphics.Blit(src, dst); return;
+        }
+        
+        // Hierachical depth buffer
+        if (_hizBuffer == null || _hizBuffer.width != Screen.width || _hizBuffer.height != Screen.height)
+        {
+            if (_hizBuffer != null)
+            {
+                _hizBuffer.Release();
+                DestroyImmediate(_hizBuffer);
+            }
+
+            _hizBuffer = new RenderTexture(src.width, src.height, 24, RenderTextureFormat.Depth);
+            _hizBuffer.useMipMap = true;
+            _hizBuffer.generateMips = false;
+            _hizBuffer.Create();
+        }
+
+        DoCompute();
 
         // Frustrum cull proteins
         FrustrumCullingCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
@@ -190,7 +266,7 @@ public class SceneRenderer : MonoBehaviour
         FrustrumCullingCS.SetFloats("_FrustrumPlanes", Helper.FrustrumPlanesAsFloats(_camera));
         FrustrumCullingCS.SetBuffer(0, "_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
         FrustrumCullingCS.SetBuffer(0, "_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        FrustrumCullingCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.InstanceCullFlags);
+        FrustrumCullingCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
         FrustrumCullingCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.InstancePositions);
         FrustrumCullingCS.SetBuffer(0, "_IngredientBoundingSpheres", ComputeBufferManager.Instance.IngredientBoundingSpheres);
         FrustrumCullingCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
@@ -199,28 +275,6 @@ public class SceneRenderer : MonoBehaviour
         FrustrumCullingCS.SetBuffer(1, "_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
         FrustrumCullingCS.SetBuffer(1, "_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
         FrustrumCullingCS.Dispatch(1, (int)Mathf.Ceil(SceneManager.Instance.NumLipidInstances / 8.0f), 1, 1);
-
-        // Do frustrum culling + occlusion culling // Do not use instance states as this wont be usable by the shadow camera
-        if (DisplaySettings.Instance.EnableOcclusionCulling)
-        {
-            //if (!DisplaySettings.Instance.DebugObjectCulling)
-            //    //{
-            //    //    Graphics.SetRandomWriteTarget(1, ComputeBufferManager.Instance.SubInstanceCullFlags);
-            //    //    Graphics.SetRenderTarget(src.colorBuffer, _depthBuffer.depthBuffer);
-            //    //    _renderSceneMaterial.SetInt("_SubInstanceStart", SceneManager.Instance.ProteinsSubInstanceStart);
-            //    //    _renderSceneMaterial.SetPass(1);
-            //    //    Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.ProteinsSubInstanceCount);
-            //    //    Graphics.ClearRandomWriteTargets();
-            //    //}
-            //}
-            //else
-            //{
-            //    // Clear cull flags buffer
-            //    ClearBufferCS.SetInt("_ClearValue", 1);
-            //    ClearBufferCS.SetBuffer(0, "_SubInstanceCullFlags", ComputeBufferManager.Instance.SubInstanceCullFlags);
-            //    ClearBufferCS.Dispatch(0, (int)Mathf.Ceil((float)SceneManager.Instance.NumSubInstances / 8.0f), 1, 1);
-            //}
-        }
         
         // Do sphere batching
         BatchInstancesCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
@@ -232,7 +286,7 @@ public class SceneRenderer : MonoBehaviour
         BatchInstancesCS.SetFloats("_LodLevelsInfos", DisplaySettings.Instance.LodLevels);
         BatchInstancesCS.SetBuffer(0, "_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
         BatchInstancesCS.SetBuffer(0, "_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        BatchInstancesCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.InstanceCullFlags);
+        BatchInstancesCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
         BatchInstancesCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.InstancePositions);
         BatchInstancesCS.SetBuffer(0, "_IngredientAtomCount", ComputeBufferManager.Instance.IngredientAtomCount);
         BatchInstancesCS.SetBuffer(0, "_IngredientAtomStart", ComputeBufferManager.Instance.IngredientAtomStart);
@@ -256,48 +310,51 @@ public class SceneRenderer : MonoBehaviour
         
         /*** Start rendering routine ***/
 
-        SetRenderSceneShaderParams();
+        SetShaderParams();
 
         // Declare temp buffers
         var idBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
         var colorBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
+        var depthBuffer = RenderTexture.GetTemporary(src.width, src.height, 24, RenderTextureFormat.Depth);
         var depthNormalsBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1);
         var colorCompositeBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
         var depthCompositeBuffer = RenderTexture.GetTemporary(src.width, src.height, 24, RenderTextureFormat.Depth);
 
         Graphics.SetRenderTarget(idBuffer);
         GL.Clear(false, true, new Color(1, 1, 1, 1));
-        
-        Graphics.SetRenderTarget(colorBuffer.colorBuffer, _depthBuffer.depthBuffer);
+
+        Graphics.SetRenderTarget(colorBuffer.colorBuffer, depthBuffer.depthBuffer);
         GL.Clear(true, true, new Color(1, 1, 1, 1));
 
         Graphics.SetRenderTarget(depthNormalsBuffer);
         GL.Clear(true, true, new Color(0.5f, 0.5f, 0, 0));
 
         // Render scene 
-        Graphics.SetRenderTarget(new[] { colorBuffer.colorBuffer, idBuffer.colorBuffer }, _depthBuffer.depthBuffer);
+        Graphics.SetRenderTarget(new[] { colorBuffer.colorBuffer, idBuffer.colorBuffer }, depthBuffer.depthBuffer);
      
         // Draw lipids
-        RenderSceneMaterial.SetPass(1);
+        _renderLipidsMaterial.SetPass(0);
         Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumLipidInstances);
 
         // Draw proteins
-        RenderSceneMaterial.SetPass(0);
+        _renderProteinsMaterial.SetPass(0);
         Graphics.DrawProceduralIndirect(MeshTopology.Points, _argBuffer);
         
+        // Draw RNA
+        _renderDnaMaterial.SetPass(0);
+        Graphics.DrawProcedural(MeshTopology.Points, Mathf.Max(SceneManager.Instance.NumDnaSegments - 2, 0)); // Do not draw first and last segments
+        
         // Do edge detection
-        _contourMaterial.SetInt("_ContourOptions", DisplaySettings.Instance.ContourOptions);
-        _contourMaterial.SetFloat("_ContourStrength", DisplaySettings.Instance.ContourStrength);
         _contourMaterial.SetTexture("_IdTexture", idBuffer);
         Graphics.Blit(colorBuffer, colorCompositeBuffer, _contourMaterial, 0);
         Graphics.Blit(colorCompositeBuffer, colorBuffer);
 
-        // Do final compositing with current camera textures
-        _fetchDepthMaterial.SetTexture("_ColorTexture", colorBuffer);
-        _fetchDepthMaterial.SetTexture("_DepthTexture", _depthBuffer);
+        // Do final compositing with the rest of the scene
+        _compositeMaterial.SetTexture("_ColorTexture", colorBuffer);
+        _compositeMaterial.SetTexture("_DepthTexture", depthBuffer);
         Graphics.SetRenderTarget(colorCompositeBuffer.colorBuffer, depthCompositeBuffer.depthBuffer);
         GL.Clear(true, true, new Color(1, 1, 1, 1));
-        Graphics.Blit(src, _fetchDepthMaterial, 1);
+        Graphics.Blit(src, _compositeMaterial, 1);
 
         // Blit final color buffer to dst buffer
         Graphics.Blit(colorCompositeBuffer, dst);
@@ -306,43 +363,25 @@ public class SceneRenderer : MonoBehaviour
         Shader.SetGlobalTexture("_CameraDepthTexture", depthCompositeBuffer);
         Shader.SetGlobalTexture("_CameraDepthNormalsTexture ", depthNormalsBuffer); // It is important to set this otherwise AO will show ghosts
 
-        // Do object picking from IdBuffer
-        if (_leftMouseDown)
-        {
-            var idTexture2D = new Texture2D(src.width, src.height, TextureFormat.ARGB32, false);
-
-            RenderTexture.active = idBuffer;
-            idTexture2D.ReadPixels(new Rect(0, 0, src.width, src.height), 0, 0);
-            idTexture2D.Apply();
-
-            SceneManager.Instance.SetSelectedInstance(Helper.GetIdFromColor(idTexture2D.GetPixel((int)_mousePos.x, src.height - (int)_mousePos.y)));
-
-            DestroyImmediate(idTexture2D);
-            _leftMouseDown = false;
-        }
-
-        //// Do occlusion culling 
-        //if (DisplaySettings.Instance.EnableOcclusionCulling)
+        //// Do object picking from IdBuffer
+        //if (_leftMouseDown)
         //{
-        //    //if (!DisplaySettings.Instance.DebugObjectCulling)
-        //    //{
-        //    //    // Clear cull flags buffer
-        //    //    ClearBufferCS.SetInt("_ClearValue", 0);
-        //    //    ClearBufferCS.SetBuffer(0, "_SubInstanceCullFlags", ComputeBufferManager.Instance.SubInstanceCullFlags);
-        //    //    ClearBufferCS.Dispatch(0, (int)Mathf.Ceil((float)SceneManager.Instance.NumSubInstances / 8.0f), 1, 1);
+        //    var idTexture2D = new Texture2D(src.width, src.height, TextureFormat.ARGB32, false);
 
-        //    //    Graphics.SetRandomWriteTarget(1, ComputeBufferManager.Instance.SubInstanceCullFlags);
-        //    //    Graphics.SetRenderTarget(src.colorBuffer, _depthBuffer.depthBuffer);
-        //    //    _renderSceneMaterial.SetInt("_SubInstanceStart", SceneManager.Instance.ProteinsSubInstanceStart);
-        //    //    _renderSceneMaterial.SetPass(1);
-        //    //    Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.ProteinsSubInstanceCount);
-        //    //    Graphics.ClearRandomWriteTargets();
-        //    //}
+        //    RenderTexture.active = idBuffer;
+        //    idTexture2D.ReadPixels(new Rect(0, 0, src.width, src.height), 0, 0);
+        //    idTexture2D.Apply();
+
+        //    SceneManager.Instance.SetSelectedInstance(Helper.GetIdFromColor(idTexture2D.GetPixel((int)_mousePos.x, src.height - (int)_mousePos.y)));
+
+        //    DestroyImmediate(idTexture2D);
+        //    _leftMouseDown = false;
         //}
-
+        
         // Release temp buffers
         RenderTexture.ReleaseTemporary(idBuffer);
         RenderTexture.ReleaseTemporary(colorBuffer);
+        RenderTexture.ReleaseTemporary(depthBuffer);
         RenderTexture.ReleaseTemporary(depthNormalsBuffer);
         RenderTexture.ReleaseTemporary(colorCompositeBuffer);
         RenderTexture.ReleaseTemporary(depthCompositeBuffer);

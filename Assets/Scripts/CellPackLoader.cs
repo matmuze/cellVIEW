@@ -8,89 +8,89 @@ using SimpleJSON;
 
 public static class CellPackLoader
 {
-    private static string _pdbCustererCmd =
-        @"D:\Projects\Unity5\CellPackViewer\trunk_cluster\Misc\AtomPdbClusterer\clusterPdb.exe";
+    //private static string _pdbCustererCmd =
+    //    @"D:\Projects\Unity5\CellPackViewer\trunk_cluster\Misc\AtomPdbClusterer\clusterPdb.exe";
     
-    public static void ComputeClusters()
-    {
-        var membraneDataPath = Application.dataPath + "/../Data/HIV/membrane/HIV_mb.bin";
-        if (!File.Exists(membraneDataPath)) throw new Exception("No file found at: " + membraneDataPath);
+    //public static void ComputeClusters()
+    //{
+    //    var membraneDataPath = Application.dataPath + "/../Data/HIV/membrane/HIV_mb.bin";
+    //    if (!File.Exists(membraneDataPath)) throw new Exception("No file found at: " + membraneDataPath);
 
-        var pdbIngredientsDirectory = Application.dataPath + "/../Data/HIV/ingredients/";
-        if (!Directory.Exists(pdbIngredientsDirectory))
-            throw new Exception("No directory found at: " + pdbIngredientsDirectory);
+    //    var pdbIngredientsDirectory = Application.dataPath + "/../Data/HIV/ingredients/";
+    //    if (!Directory.Exists(pdbIngredientsDirectory))
+    //        throw new Exception("No directory found at: " + pdbIngredientsDirectory);
 
-        // Add ingredient pdb path to the loader
-        PdbLoader.AddPdbDirectory(pdbIngredientsDirectory);
+    //    // Add ingredient pdb path to the loader
+    //    PdbLoader.AddPdbDirectory(pdbIngredientsDirectory);
 
-        var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
-        if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
+    //    var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
+    //    if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
 
-        var resultData = Helper.parseJson(cellPackSceneJsonPath);
+    //    var resultData = Helper.parseJson(cellPackSceneJsonPath);
 
-        //we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
-        //the recipe is optional as it will gave more information than just the result file.
+    //    //we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
+    //    //the recipe is optional as it will gave more information than just the result file.
 
-        int nComp = resultData["compartments"].Count;
+    //    int nComp = resultData["compartments"].Count;
 
-        //I dont do the cytoplasme compartments, will do when Blood will be ready
-        for (int i = 0; i < nComp; i++)
-        {
-            var surfaceIngredients = resultData["compartments"][i]["surface"]["ingredients"];
-            for (int j = 0; j < surfaceIngredients.Count; j++)
-            {
-                var pdbName = surfaceIngredients[j]["source"]["pdb"].Value.Replace(".pdb", "");
-                var pdbPath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdb";
-                var clusterFilePath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdbL0.txt";
+    //    //I dont do the cytoplasme compartments, will do when Blood will be ready
+    //    for (int i = 0; i < nComp; i++)
+    //    {
+    //        var surfaceIngredients = resultData["compartments"][i]["surface"]["ingredients"];
+    //        for (int j = 0; j < surfaceIngredients.Count; j++)
+    //        {
+    //            var pdbName = surfaceIngredients[j]["source"]["pdb"].Value.Replace(".pdb", "");
+    //            var pdbPath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdb";
+    //            var clusterFilePath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdbL0.txt";
 
-                if (File.Exists(pdbPath) && !File.Exists(clusterFilePath))
-                {
-                    Debug.Log("Start pdb cluster batch");
+    //            if (File.Exists(pdbPath) && !File.Exists(clusterFilePath))
+    //            {
+    //                Debug.Log("Start pdb cluster batch");
 
-                    System.Diagnostics.Process process = new System.Diagnostics.Process();
-                    System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
-                    //startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                    startInfo.WorkingDirectory = pdbIngredientsDirectory;
-                    startInfo.FileName = _pdbCustererCmd;
-                    startInfo.Arguments = "-f" + pdbName + ".pdb -c AP -a -100 -b 3";
-                    process.StartInfo = startInfo;
-                    process.Start();
-                }
-            }
+    //                System.Diagnostics.Process process = new System.Diagnostics.Process();
+    //                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+    //                //startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+    //                startInfo.WorkingDirectory = pdbIngredientsDirectory;
+    //                startInfo.FileName = _pdbCustererCmd;
+    //                startInfo.Arguments = "-f" + pdbName + ".pdb -c AP -a -100 -b 3";
+    //                process.StartInfo = startInfo;
+    //                process.Start();
+    //            }
+    //        }
 
-            return;
+    //        return;
 
-            var interiorIngredients = resultData["compartments"][i]["interior"]["ingredients"];
-            for (int j = 0; j < interiorIngredients.Count; j++)
-            {
-                var pdbName = interiorIngredients[j]["source"]["pdb"].Value.Replace(".pdb", "");
-                var pdbPath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdb";
-                var clusterFilePath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdbL0.txt";
+    //        var interiorIngredients = resultData["compartments"][i]["interior"]["ingredients"];
+    //        for (int j = 0; j < interiorIngredients.Count; j++)
+    //        {
+    //            var pdbName = interiorIngredients[j]["source"]["pdb"].Value.Replace(".pdb", "");
+    //            var pdbPath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdb";
+    //            var clusterFilePath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdbL0.txt";
 
-                if (File.Exists(pdbPath) && !File.Exists(clusterFilePath))
-                {
-                    Debug.Log("Execute clustering for file: " + Path.GetFileName(pdbPath));
+    //            if (File.Exists(pdbPath) && !File.Exists(clusterFilePath))
+    //            {
+    //                Debug.Log("Execute clustering for file: " + Path.GetFileName(pdbPath));
 
-                    System.Diagnostics.Process process = new System.Diagnostics.Process();
-                    System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
-                    //startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                    startInfo.WorkingDirectory = pdbIngredientsDirectory;
-                    startInfo.FileName = _pdbCustererCmd;
-                    startInfo.Arguments = "-f" + pdbName + ".pdb -c AP -a -100 -b 3";
-                    process.StartInfo = startInfo;
-                    process.Start();
-                }
-            }
-        }
-    }
+    //                System.Diagnostics.Process process = new System.Diagnostics.Process();
+    //                System.Diagnostics.ProcessStartInfo startInfo = new System.Diagnostics.ProcessStartInfo();
+    //                //startInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+    //                startInfo.WorkingDirectory = pdbIngredientsDirectory;
+    //                startInfo.FileName = _pdbCustererCmd;
+    //                startInfo.Arguments = "-f" + pdbName + ".pdb -c AP -a -100 -b 3";
+    //                process.StartInfo = startInfo;
+    //                process.Start();
+    //            }
+    //        }
+    //    }
+    //}
 
     public static void LoadRecipe()
     {
-        var pdbIngredientsDirectory = Application.dataPath + "/../Data/HIV/ingredients/";
-        if (!Directory.Exists(pdbIngredientsDirectory)) throw new Exception("No directory found at: " + pdbIngredientsDirectory);
+        var proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
+        if (!Directory.Exists(proteinDiretory)) throw new Exception("No directory found at: " + proteinDiretory);
 
         // Add ingredient pdb path to the loader
-        PdbLoader.AddPdbDirectory(pdbIngredientsDirectory);
+        PdbLoader.AddPdbDirectory(proteinDiretory);
 
         var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
         if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
@@ -113,8 +113,8 @@ public static class CellPackLoader
 
                 if (pdbName.Contains("1PI7_1vpu_biounit")) continue;
 
-                var pdbPath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdb";
-                var clusterLevelPath = Application.dataPath + "/../Data/HIV/ingredients/cluster_levels/" + pdbName + ".pdbL0.txt";
+                var pdbPath = proteinDiretory + pdbName + ".pdb";
+                var clusterLevelPath = proteinDiretory + "cluster_levels/" + pdbName + ".pdbL0.txt";
 
                 if (!File.Exists(pdbPath) || !File.Exists(clusterLevelPath))
                 {
@@ -127,7 +127,7 @@ public static class CellPackLoader
                 PdbLoader.OffsetPoints(ref atoms, bounds.center);
 
                 // Read clusters level 0
-                var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath);
+                var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath); //PdbLoader.ReadClusterPdbFile(clusterLevelPath); //
                 PdbLoader.OffsetPoints(ref clustersLevel0, bounds.center);
 
                 // Add ingredient
@@ -163,8 +163,8 @@ public static class CellPackLoader
 
                 if (pdbName.Contains("1PI7_1vpu_biounit")) continue;
 
-                var pdbPath = Application.dataPath + "/../Data/HIV/ingredients/" + pdbName + ".pdb";
-                var clusterLevelPath = Application.dataPath + "/../Data/HIV/ingredients/cluster_levels/" + pdbName + ".pdbL0.txt";
+                var pdbPath = proteinDiretory + pdbName + ".pdb";
+                var clusterLevelPath = proteinDiretory + "cluster_levels/" + pdbName + ".pdbL0.txt";
 
                 if (!File.Exists(pdbPath) || !File.Exists(clusterLevelPath))
                 {
@@ -177,7 +177,7 @@ public static class CellPackLoader
                 PdbLoader.OffsetPoints(ref atoms, bounds.center);
 
                 // Read clusters level 0
-                var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath);
+                var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath); //PdbLoader.ReadClusterPdbFile(clusterLevelPath); 
                 PdbLoader.OffsetPoints(ref clustersLevel0, bounds.center);
 
                 // Add ingredient
@@ -214,10 +214,32 @@ public static class CellPackLoader
         SceneManager.Instance.UploadAllData();
     }
 
+    public static void LoadRna()
+    {
+        var rnaControlPointsPath = Application.dataPath + "/../Data/HIV/rna/rna_allpoints.txt";
+        if (!File.Exists(rnaControlPointsPath)) throw new Exception("No file found at: " + rnaControlPointsPath);
+
+        var controlPoints = new List<Vector4>();
+        foreach (var line in File.ReadAllLines(rnaControlPointsPath))
+        {
+            var split = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var x = float.Parse(split[0]);
+            var y = float.Parse(split[1]);
+            var z = float.Parse(split[2]);
+
+            //should use -Z pdb are right-handed
+            controlPoints.Add(new Vector4(-x, y, z, 1));
+        }
+
+        SceneManager.Instance.LoadRna(controlPoints);
+        SceneManager.Instance.UploadAllData();
+    }
+
     public static void LoadScene()
     {
         LoadRecipe();
         LoadMembrane();
+        LoadRna();
 
         SceneManager.Instance.UploadAllData();
     }

@@ -27,6 +27,7 @@ uniform AppendStructuredBuffer<float4> _SubInstanceInformations;
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
 	if(id.x >= (uint)_NumInstances || _InstanceStates[id.x] == -1 || _InstanceCullFlags[id.x] == 1) return;
+	//if(id.x >= (uint)_NumInstances || _InstanceCullFlags[id.x] == 1) return;
 	
 	int type = _InstanceTypes[id.x];	
 	float3 position = _InstancePositions[id.x].xyz * _Scale;	

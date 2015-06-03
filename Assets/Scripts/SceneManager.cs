@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 enum InstanceState
@@ -14,12 +15,11 @@ public class SceneManager : MonoBehaviour
 {
     //*****//
 
-    public const int NumLodLevels = 2;
     public const int NumAtomMax = 1000000;          // Used for GPU buffer memory allocation
     public const int NumIngredientsMax = 1000;      // Used for GPU buffer memory allocation
 
-    public const int NumProteinInstancesMax = 15000;       // Used for GPU buffer memory allocation
-    public const int NumProteinSphereBatchesMax = 30000;   // Used for GPU buffer memory allocation
+    public const int NumProteinInstancesMax = 25000000;       // Used for GPU buffer memory allocation
+    public const int NumProteinSphereBatchesMax = 25000000;   // Used for GPU buffer memory allocation
 
     public const int NumLipidAtomMax = 8000000;     // Used for GPU buffer memory allocation
     public const int NumLipidInstancesMax = 300000; // Used for GPU buffer memory allocation
@@ -27,9 +27,12 @@ public class SceneManager : MonoBehaviour
     public const int NumDnaControlPointsMax = 1000000;
     public const int NumDnaAtomsMax = 1000;
 
+    //public List<int> UnitInstanceStart = new List<int>();
+    //public List<int> UnitInstanceCount = new List<int>();
+    public List<Vector4> UnitInstancePositions = new List<Vector4>();
+
     // Scene data
-    public List<int> InstanceTypes = new List<int>();
-    public List<int> InstanceStates = new List<int>();
+    public List<Vector4> InstanceInfos = new List<Vector4>();
     public List<Vector4> InstancePositions = new List<Vector4>();
     public List<Vector4> InstanceRotations = new List<Vector4>();
 
@@ -75,8 +78,10 @@ public class SceneManager : MonoBehaviour
 
     public int NumDnaSegments
     {
-        get { return DnaControlPoints.Count - 1; }
+        get { return Math.Max(DnaControlPoints.Count - 1, 0); }
     }
+    
+    public int NumLodLevels = 0;
 
     //*****//
     
@@ -111,10 +116,42 @@ public class SceneManager : MonoBehaviour
         _instance.UploadAllData();
     }
 
+    public int UnitSize = 0;
+
+    public void AddUnitInstance(Vector3 offset)
+    {
+       if(UnitSize == 0) UnitSize = InstanceInfos.Count;
+
+       for (int i = 0; i < UnitSize; i++)
+       {
+           var info = InstanceInfos[i];
+           info.w = UnitInstancePositions.Count;
+
+           var position = InstancePositions[i];
+           position += new Vector4(offset.x, offset.y, offset.z, 0);
+
+           var rotation = InstanceRotations[i];
+
+           InstanceInfos.Add(info);
+           InstancePositions.Add(position);
+           InstanceRotations.Add(rotation);
+       }
+
+        //if (UnitSize == 0) UnitSize = InstancePositions.Count;
+
+        //if (duplicateData)
+        //{
+        //    
+        //}
+    }
+    
     public void AddIngredient(string ingredientName, Bounds bounds, List<Vector4> atoms, List<List<Vector4>> clusters = null) 
     {
         if (IngredientNames.Contains(ingredientName)) return;
 
+        if (NumLodLevels != 0 && NumLodLevels != clusters.Count)
+            throw new Exception("Uneven cluster levels number: " + ingredientName);
+        
         IngredientToggleFlags.Add(1);
         IngredientNames.Add(ingredientName);
         IngredientsColors.Add(Helper.GetRandomColor());
@@ -126,9 +163,11 @@ public class SceneManager : MonoBehaviour
 
         var clusterCount = new Vector4(0,0,0,0);
         var clusterStart = new Vector4(0,0,0,0);
-
+        
         if (clusters != null)
         {
+            NumLodLevels = clusters.Count;
+
             for (int i = 0; i < Mathf.Min(clusters.Count, 4); i++)
             {
                 clusterCount[i] = clusters[i].Count;
@@ -141,7 +180,7 @@ public class SceneManager : MonoBehaviour
         IngredientClusterStart.Add(clusterStart);
     }
 
-    public void AddIngredientInstance(string ingredientName, Vector3 position, Quaternion rotation)
+    public void AddIngredientInstance(string ingredientName, Vector3 position, Quaternion rotation, int unitId = 0)
     {
         if (!IngredientNames.Contains(ingredientName))
         {
@@ -150,9 +189,11 @@ public class SceneManager : MonoBehaviour
 
         var ingredientId = IngredientNames.IndexOf(ingredientName);
 
-        InstanceTypes.Add(ingredientId);
-        InstanceStates.Add((int)InstanceState.Normal);
-        InstancePositions.Add(position);
+        Vector4 instancePosition = position;
+        instancePosition.w = IngredientBoundingSpheres[ingredientId];
+
+        InstanceInfos.Add(new Vector4(ingredientId, (int)InstanceState.Normal, unitId));
+        InstancePositions.Add(instancePosition);
         InstanceRotations.Add(Helper.QuanternionToVector4(rotation));
     }
 
@@ -178,8 +219,10 @@ public class SceneManager : MonoBehaviour
                 var center = new Vector4(bounds.center.x, bounds.center.y, bounds.center.z, 0);
                 for (var j = 0; j < lipidAtoms.Count; j++) lipidAtoms[j] -= center;
 
-                LipidSphereBatchInfos.Add(new Vector4(lipidAtoms.Count, lipidAtomStart, Vector3.Magnitude(bounds.extents), 0));
-                LipidInstancePositions.Add(position + bounds.center);
+                Vector4 batchPosition = position + bounds.center;
+                batchPosition.w = Vector3.Magnitude(bounds.extents);
+                LipidSphereBatchInfos.Add(new Vector4(lipidAtoms.Count, lipidAtomStart, 0, 0));
+                LipidInstancePositions.Add(batchPosition);
 
                 lipidAtomStart += lipidAtoms.Count;
                 lipidIndex = (int)membraneData[i + 4];
@@ -196,61 +239,61 @@ public class SceneManager : MonoBehaviour
     
     public void LoadRna(List<Vector4> controlPoints)
     {
-        var normalizedCp = new List<Vector4>();
-        normalizedCp.Add(controlPoints[0]);
-        normalizedCp.Add(controlPoints[1]);
+        //var normalizedCp = new List<Vector4>();
+        //normalizedCp.Add(controlPoints[0]);
+        //normalizedCp.Add(controlPoints[1]);
 
-        var currentPointId = 1;
-        var currentPosition = controlPoints[currentPointId];
+        //var currentPointId = 1;
+        //var currentPosition = controlPoints[currentPointId];
 
-        float distance = DisplaySettings.Instance.DistanceContraint;
-        float lerpValue = 0.0f;
+        //float distance = DisplaySettings.Instance.DistanceContraint;
+        //float lerpValue = 0.0f;
 
-        // Normalize the distance between control points
-        while (true)
-        {
-            if (currentPointId + 2 >= controlPoints.Count) break;
+        //// Normalize the distance between control points
+        //while (true)
+        //{
+        //    if (currentPointId + 2 >= controlPoints.Count) break;
 
-            var cp0 = controlPoints[currentPointId - 1];
-            var cp1 = controlPoints[currentPointId];
-            var cp2 = controlPoints[currentPointId + 1];
-            var cp3 = controlPoints[currentPointId + 2];
+        //    var cp0 = controlPoints[currentPointId - 1];
+        //    var cp1 = controlPoints[currentPointId];
+        //    var cp2 = controlPoints[currentPointId + 1];
+        //    var cp3 = controlPoints[currentPointId + 2];
 
-            var found = false;
+        //    var found = false;
 
-            for (; lerpValue <= 1; lerpValue += 0.01f)
-            {
-                var candidate = Helper.CubicInterpolate(cp0, cp1, cp2, cp3, lerpValue);
-                var d = Vector3.Distance(currentPosition, candidate);
+        //    for (; lerpValue <= 1; lerpValue += 0.01f)
+        //    {
+        //        var candidate = Helper.CubicInterpolate(cp0, cp1, cp2, cp3, lerpValue);
+        //        var d = Vector3.Distance(currentPosition, candidate);
 
-                if (d > distance)
-                {
-                    normalizedCp.Add(candidate);
-                    currentPosition = candidate;
-                    found = true;
-                    break;
-                }
-            }
+        //        if (d > distance)
+        //        {
+        //            normalizedCp.Add(candidate);
+        //            currentPosition = candidate;
+        //            found = true;
+        //            break;
+        //        }
+        //    }
 
-            if (!found)
-            {
-                lerpValue = 0;
-                currentPointId++;
-            }
-        }
+        //    if (!found)
+        //    {
+        //        lerpValue = 0;
+        //        currentPointId++;
+        //    }
+        //}
 
-        DnaControlPoints.AddRange(normalizedCp);
-        //DnaControlPoints.AddRange(controlPoints);
+        //DnaControlPoints.AddRange(normalizedCp);
+        ////DnaControlPoints.AddRange(controlPoints);
 
-        Debug.Log(normalizedCp.Count);
+        //Debug.Log(normalizedCp.Count);
 
-        //var bounds = PdbLoader.GetBounds(DnaControlPoints);
-        //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+        ////var bounds = PdbLoader.GetBounds(DnaControlPoints);
+        ////PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
 
-        var atoms = PdbLoader.ReadPdbFile("basesingle");
-        //var atomBounds = PdbLoader.GetBounds(atoms);
-        //PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
-        DnaAtoms.AddRange(atoms);
+        //var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.GetPdbFilePath("basesingle"));
+        ////var atomBounds = PdbLoader.GetBounds(atoms);
+        ////PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
+        //DnaAtoms.AddRange(atomSpheres);
     }
 
     //--------------------------------------------------------------------------------------
@@ -333,9 +376,10 @@ public class SceneManager : MonoBehaviour
     {
         Debug.Log("Clear scene");
 
+        NumLodLevels = 0;
+
         // Clear scene data
-        InstanceTypes.Clear();
-        InstanceStates.Clear();
+        InstanceInfos.Clear();
         InstancePositions.Clear();
         InstanceRotations.Clear();
 
@@ -363,30 +407,30 @@ public class SceneManager : MonoBehaviour
         // Clear dna data
         DnaAtoms.Clear();
         DnaControlPoints.Clear();
+
+        UnitInstancePositions.Clear();
     }
 
     public void UploadAllData()
     {
         // Upload scene data
-        ComputeBufferManager.Instance.InstanceTypes.SetData(InstanceTypes.ToArray());
-        ComputeBufferManager.Instance.InstanceStates.SetData(InstanceStates.ToArray());
-        ComputeBufferManager.Instance.InstancePositions.SetData(InstancePositions.ToArray());
-        ComputeBufferManager.Instance.InstanceRotations.SetData(InstanceRotations.ToArray());
+        ComputeBufferManager.Instance.ProteinInstanceInfos.SetData(InstanceInfos.ToArray());
+        ComputeBufferManager.Instance.ProteinInstancePositions.SetData(InstancePositions.ToArray());
+        ComputeBufferManager.Instance.ProteinInstanceRotations.SetData(InstanceRotations.ToArray());
 
         // Upload ingredient data
-        ComputeBufferManager.Instance.IngredientColors.SetData(IngredientsColors.ToArray());
-        ComputeBufferManager.Instance.IngredientToggleFlags.SetData(IngredientToggleFlags.ToArray());
-        ComputeBufferManager.Instance.IngredientBoundingSpheres.SetData(IngredientBoundingSpheres.ToArray());
+        ComputeBufferManager.Instance.ProteinColors.SetData(IngredientsColors.ToArray());
+        ComputeBufferManager.Instance.ProteinVisibilityFlags.SetData(IngredientToggleFlags.ToArray());
 
         // Upload atom data
         ComputeBufferManager.Instance.ProteinAtomPositions.SetData(AtomPositions.ToArray());
-        ComputeBufferManager.Instance.IngredientAtomCount.SetData(IngredientAtomCount.ToArray());
-        ComputeBufferManager.Instance.IngredientAtomStart.SetData(IngredientAtomStart.ToArray());
+        ComputeBufferManager.Instance.ProteinAtomCount.SetData(IngredientAtomCount.ToArray());
+        ComputeBufferManager.Instance.ProteinAtomStart.SetData(IngredientAtomStart.ToArray());
 
         // Upload cluster data
         ComputeBufferManager.Instance.ProteinClusterPositions.SetData(ClusterPositions.ToArray());
-        ComputeBufferManager.Instance.IngredientClusterCount.SetData(IngredientClusterCount.ToArray());
-        ComputeBufferManager.Instance.IngredientClusterStart.SetData(IngredientClusterStart.ToArray());
+        ComputeBufferManager.Instance.ProteinClusterCount.SetData(IngredientClusterCount.ToArray());
+        ComputeBufferManager.Instance.ProteinClusterStart.SetData(IngredientClusterStart.ToArray());
 
         // Upload lipid data
         ComputeBufferManager.Instance.LipidAtomPositions.SetData(LipidAtomPositions.ToArray());
@@ -400,15 +444,14 @@ public class SceneManager : MonoBehaviour
     
     public void UploadSceneData()
     {
-        ComputeBufferManager.Instance.InstanceTypes.SetData(InstanceTypes.ToArray());
-        ComputeBufferManager.Instance.InstanceStates.SetData(InstanceStates.ToArray());
-        ComputeBufferManager.Instance.InstancePositions.SetData(InstancePositions.ToArray());
-        ComputeBufferManager.Instance.InstanceRotations.SetData(InstanceRotations.ToArray());
+        ComputeBufferManager.Instance.ProteinInstanceInfos.SetData(InstanceInfos.ToArray());
+        ComputeBufferManager.Instance.ProteinInstancePositions.SetData(InstancePositions.ToArray());
+        ComputeBufferManager.Instance.ProteinInstanceRotations.SetData(InstanceRotations.ToArray());
     }
 
     public void UploadIngredientToggleData()
     {
-        ComputeBufferManager.Instance.IngredientToggleFlags.SetData(IngredientToggleFlags.ToArray());
+        ComputeBufferManager.Instance.ProteinVisibilityFlags.SetData(IngredientToggleFlags.ToArray());
     }  
 
 }

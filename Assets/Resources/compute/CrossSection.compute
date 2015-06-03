@@ -4,54 +4,25 @@ uniform	int _NumProteinInstances;
 uniform int _EnableCrossSection;
 uniform float4 _CrossSectionPlane;
 
-#pragma kernel CSProteins
-
-uniform	StructuredBuffer<int> _InstanceTypes;
+uniform	int _NumInstances;
 uniform	StructuredBuffer<float4> _InstancePositions;
-uniform	StructuredBuffer<int> _IngredientVisibilityFlags;
+uniform	RWStructuredBuffer<float4> _InstanceCullFlags;
 
-uniform	RWStructuredBuffer<int> _InstanceStates;
-
-bool spherePlaneTest( float4 plane, float3 center, float offset)
+bool SpherePlaneTest( float4 plane, float3 center, float offset)
 {
 	return dot(plane.xyz, center - plane.xyz * -plane.w) + offset > 0;
 }
 
+#pragma kernel CrossSection
+
 [numthreads(8,1,1)]
-void CSProteins (uint3 id : SV_DispatchThreadID)
+void CrossSection (uint3 id : SV_DispatchThreadID)
 {	
-	if(id.x >= (uint)_NumProteinInstances) return;
+	if(id.x >= (uint)_NumInstances) return;			
 	
-	// Toggle ingredients visibily 
-	int state = (_IngredientVisibilityFlags[_InstanceTypes[id.x]] == 0) ? -1 : 0;			
-										
-	// Do cross section
-	state = (_EnableCrossSection && spherePlaneTest(_CrossSectionPlane, (_InstancePositions[id.x].xyz * _Scale), 0)) ? -1 : state;		
-
-	// Update state buffer
-	_InstanceStates[id.x] = state;
-}
-
-#pragma kernel CSLipids
-
-uniform StructuredBuffer<float4> _LipidInstancePositions;	
-uniform RWStructuredBuffer<float4> _LipidSphereBatchInfos;	
-
-[numthreads(8,1,1)]
-void CSLipids (uint3 id : SV_DispatchThreadID)
-{	
-	if(id.x >= (uint)_NumLipidInstances) return;		
-		
-	float4 sphereBatchInfo = _LipidSphereBatchInfos[id.x];
-	float3 center = _LipidInstancePositions[id.x].xyz * _Scale;
-	float radius = sphereBatchInfo.z * _Scale;
-					
-	int visibilityMask = sphereBatchInfo.w;
-
-	// We use the second bit of the visibility mask for cross section visibility
-	// the first bit is reserved for frustrum visibility
-										
-	// Set visibility																										// Set bit						// Clear bit
-	_LipidSphereBatchInfos[id.x].w = (_EnableCrossSection && spherePlaneTest(_CrossSectionPlane, center, radius)) ? visibilityMask | (1 << 1) : visibilityMask & ~(1 << 1);
+	float3 center = _InstancePositions[id.x].xyz * _Scale;	
+	bool cullInstance = _EnableCrossSection && SpherePlaneTest(_CrossSectionPlane, center, 0);
+	
+	_InstanceCullFlags[id.x].x = cullInstance ? 1 : 0;	
 }
 

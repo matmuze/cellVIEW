@@ -289,8 +289,8 @@
 	{
 		float4 depthTmp, coeff;
 		float depth = Linear01Depth(getDepth(i.uv));
-		float3 c = tex2D(_MainTex, i.uv).rgb * 0.2270270270;
-					
+		float3 c = tex2D(_MainTex, i.uv).rgb;
+		
 		depthTmp.x = Linear01Depth(getDepth(i.uv1.xy));
 		depthTmp.y = Linear01Depth(getDepth(i.uv1.zw));
 		depthTmp.z = Linear01Depth(getDepth(i.uv2.xy));
@@ -303,6 +303,47 @@
 
 		c /= (coeff.x + coeff.y + coeff.z + coeff.w);
 		return float4(c, 1.0);
+	}
+
+
+	// --------------------------------------------------------------------------------
+	// High Quality Bilateral Blur
+
+	v_data_blur vert_hqbilateral(appdata_img v)
+	{
+		v_data_blur o;
+		o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+		o.uv = MultiplyUV(UNITY_MATRIX_TEXTURE0, v.texcoord);
+		float2 d1 = 1.3846153846 * _Direction;
+		float2 d2 = 3.2307692308 * _Direction;
+		o.uv1 = float4(o.uv + d1, o.uv - d1);
+		o.uv2 = float4(o.uv + d2, o.uv - d2);
+		return o;
+	}
+
+	float4 frag_hqbilateral(v_data_blur i) : COLOR
+	{	
+		const float2 uvs[4] = { i.uv1.xy, i.uv1.zw, i.uv2.xy, i.uv2.zw };
+
+		float depth = Linear01Depth(getDepth(i.uv));
+		float3 accum = tex2D(_MainTex, i.uv) * 0.2270270270;
+		float accumWeight = 0.2270270270;
+
+		float4 depthTmp;
+		depthTmp.x = Linear01Depth(getDepth(uvs[0]));
+		depthTmp.y = Linear01Depth(getDepth(uvs[1]));
+		depthTmp.z = Linear01Depth(getDepth(uvs[2]));
+		depthTmp.w = Linear01Depth(getDepth(uvs[3]));
+		float4 diff = abs(depth - depthTmp);
+		float4 weight = (1.0 - step(_BilateralThreshold, diff)) * float4(0.3162162162, 0.3162162162, 0.0702702703, 0.0702702703);
+
+		for (int i = 0; i < 4; i++)
+		{
+			accum += weight[i] * tex2D(_MainTex, uvs[i]);
+			accumWeight += weight[i];
+		}
+
+		return float4(accum / accumWeight, 1.0);
 	}
 
 

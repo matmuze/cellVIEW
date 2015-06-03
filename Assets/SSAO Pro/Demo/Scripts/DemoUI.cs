@@ -17,9 +17,9 @@ public class DemoUI : MonoBehaviour
 			m_SSAOPro.enabled = GUILayout.Toggle(m_SSAOPro.enabled, "Enable SSAO");
 			m_SSAOPro.DebugAO = GUILayout.Toggle(m_SSAOPro.DebugAO, "Show AO Only");
 
-			bool blur = m_SSAOPro.Blur == SSAOPro.BlurMode.Bilateral;
-			blur = GUILayout.Toggle(blur, "Bilateral Blur");
-			m_SSAOPro.Blur = blur ? SSAOPro.BlurMode.Bilateral : SSAOPro.BlurMode.None;
+			bool blur = m_SSAOPro.Blur == SSAOPro.BlurMode.HighQualityBilateral;
+			blur = GUILayout.Toggle(blur, "HQ Bilateral Blur");
+			m_SSAOPro.Blur = blur ? SSAOPro.BlurMode.HighQualityBilateral : SSAOPro.BlurMode.None;
 
 			GUILayout.Space(10);
 

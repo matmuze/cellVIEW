@@ -14,7 +14,8 @@ public class SSAOPro : MonoBehaviour
 	{
 		None,
 		Gaussian,
-		Bilateral
+		Bilateral,
+		HighQualityBilateral
 	}
 
 	public enum SampleCount
@@ -46,7 +47,7 @@ public class SSAOPro : MonoBehaviour
 	[Range(1, 4)]
 	public int Downsampling = 1;
 
-	[Range(0.01f, 2.0f)]
+	[Range(0.01f, 1.25f)]
 	public float Radius = 0.125f;
 
 	[Range(0f, 16f)]
@@ -68,6 +69,12 @@ public class SSAOPro : MonoBehaviour
 
 	public BlurMode Blur = BlurMode.None;
 	public bool BlurDownsampling = false;
+
+	[Range(1, 4)]
+	public int BlurPasses = 1;
+
+	[Range(0.05f, 1f)]
+	public float BlurBilateralThreshold = 0.1f;
 
 	public bool DebugAO = false;
 
@@ -271,12 +278,11 @@ public class SSAOPro : MonoBehaviour
 		// Uniforms
 		if (Mode == AOMode.V11)
 		{
-			Material.SetMatrix("_InverseViewProject", m_Camera.projectionMatrix.inverse);
+			Material.SetMatrix("_InverseViewProject", GL.GetGPUProjectionMatrix(m_Camera.projectionMatrix, false).inverse);
 		}
 		else
 		{
-			//Material.SetMatrix("_InverseViewProject", (m_Camera.projectionMatrix * m_Camera.worldToCameraMatrix).inverse);
-            Material.SetMatrix("_InverseViewProject", (Helper.GetProjectionMatrix(m_Camera) * m_Camera.worldToCameraMatrix).inverse);
+            Material.SetMatrix("_InverseViewProject", (GL.GetGPUProjectionMatrix(m_Camera.projectionMatrix, false) * m_Camera.worldToCameraMatrix).inverse);
 			Material.SetMatrix("_CameraModelView", m_Camera.cameraToWorldMatrix);
 		}
 
@@ -301,13 +307,18 @@ public class SSAOPro : MonoBehaviour
 
 			Graphics.Blit(source, rt, Material, ssaoPass);
 			Material.SetTexture("_SSAOTex", rt);
-			Graphics.Blit(source, destination, Material, 7);
+			Graphics.Blit(source, destination, Material, 8);
 			RenderTexture.ReleaseTemporary(rt);
 		}
 		else
 		{
 			// Pass ID
-			int blurPass = (Blur == BlurMode.Bilateral) ? 6 : 5;
+			int blurPass = 5;
+
+			if (Blur == BlurMode.Bilateral)
+				blurPass = 6;
+			else if (Blur == BlurMode.HighQualityBilateral)
+				blurPass = 7;
 
 			// Prep work
 			int d = BlurDownsampling ? Downsampling : 1;
@@ -318,26 +329,28 @@ public class SSAOPro : MonoBehaviour
 			// SSAO
 			Graphics.Blit(source, rt1, Material, ssaoPass);
 
-			// Horizontal blur
-			Material.SetVector("_Direction", new Vector2(1f / source.width, 0f));
-			Graphics.Blit(rt1, rt2, Material, blurPass);
+			if (Blur == BlurMode.HighQualityBilateral)
+				Material.SetFloat("_BilateralThreshold", BlurBilateralThreshold / 10000);
 
-			// Vertical blur
-			Material.SetVector("_Direction", new Vector2(0f, 1f / source.height));
+			for (int i = 0; i < BlurPasses; i++)
+			{
+				// Horizontal blur
+				Material.SetVector("_Direction", new Vector2(1f / source.width, 0f));
+				Graphics.Blit(rt1, rt2, Material, blurPass);
+
+				// Vertical blur
+				Material.SetVector("_Direction", new Vector2(0f, 1f / source.height));
+				Graphics.Blit(rt2, rt1, Material, blurPass);
+			}
 
 			if (!DebugAO)
 			{
-#if (UNITY_ANDROID || UNITY_IPHONE || UNITY_XBOX360)
-				rt1.DiscardContents();
-#endif
-
-				Graphics.Blit(rt2, rt1, Material, blurPass);
 				Material.SetTexture("_SSAOTex", rt1);
-				Graphics.Blit(source, destination, Material, 7);
+				Graphics.Blit(source, destination, Material, 8);
 			}
 			else
 			{
-				Graphics.Blit(rt2, destination, Material, blurPass);
+				Graphics.Blit(rt1, destination);
 			}
 
 			RenderTexture.ReleaseTemporary(rt1);
@@ -351,13 +364,7 @@ public class SSAOPro : MonoBehaviour
 	int SetShaderStates()
 	{
 		// Depth & normal maps
-#if UNITY_4_X
-		if (!UseHighPrecisionDepthMap)
-			m_Camera.depthTextureMode |= DepthTextureMode.Depth;
-#else
 		m_Camera.depthTextureMode |= DepthTextureMode.Depth;
-#endif
-
 		m_Camera.depthTextureMode |= DepthTextureMode.DepthNormals;
 
 		// Shader keywords

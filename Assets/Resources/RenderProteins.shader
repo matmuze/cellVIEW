@@ -5,27 +5,32 @@ Shader "Custom/RenderProteins"
 	#include "UnityCG.cginc"
 	#include "Helper.cginc"		
 	#include "Common.cginc"	
+		
 	
-	uniform	StructuredBuffer<int> _InstanceTypes;
-	uniform	StructuredBuffer<int> _InstanceStates;
-	uniform	StructuredBuffer<float4> _InstancePositions;
-	uniform	StructuredBuffer<float4> _InstanceRotations;
+	uniform int _EnableLod;
+	uniform	StructuredBuffer<float4> _ProteinInstanceInfo;
+	uniform	StructuredBuffer<float4> _ProteinInstancePositions;
+	uniform	StructuredBuffer<float4> _ProteinInstanceRotations;
 						
 	uniform StructuredBuffer<float4> _IngredientColors;	
 	uniform StructuredBuffer<float4> _ProteinAtomPositions;	
 	uniform StructuredBuffer<float4> _ProteinClusterPositions;	
 	uniform StructuredBuffer<float4> _ProteinSphereBatchInfos;	
 
+	uniform StructuredBuffer<float4> _ProteinUnitInstancePosition;	
+
 	void vs_protein(uint id : SV_VertexID, out vs2ds output)
 	{		
 		float4 sphereBatchInfo = _ProteinSphereBatchInfos[id];	
-				
 		output.id = sphereBatchInfo.x;
-		output.type = _InstanceTypes[output.id];		
-		output.state = _InstanceStates[output.id];
-		output.rot = _InstanceRotations[output.id];	
+
+		float4 infos = _ProteinInstanceInfo[output.id];
+		
+		output.type = infos.x;		
+		output.state = infos.y;
 		output.color = _IngredientColors[output.type]; // Read color here and pass it to the next levels to avoid unnecessary buffer reads
-		output.pos = _InstancePositions[output.id].xyz * _Scale;	
+		output.rot = _ProteinInstanceRotations[output.id];	
+		output.pos = _ProteinInstancePositions[output.id].xyz * _Scale;	
 	
 		// Set LOD values	
 		float beginRange = (sphereBatchInfo.y == 0) ? _FirstLevelBeingRange : _LodLevelsInfos[sphereBatchInfo.y -1][0];
@@ -35,8 +40,8 @@ Shader "Custom/RenderProteins"
 		float radiusMin =  max(_LodLevelsInfos[sphereBatchInfo.y][1], 1);
 		float radiusMax = max(_LodLevelsInfos[sphereBatchInfo.y][2], radiusMin);
 		
-		output.lodLevel = sphereBatchInfo.y;		
-		output.radiusScale = lerp(radiusMin, radiusMax, radiusLerp) * _Scale;	
+		output.lodLevel = (_EnableLod) ? sphereBatchInfo.y : 0;		
+		output.radiusScale = ((_EnableLod) ? lerp(radiusMin, radiusMax, radiusLerp) : 1) * _Scale;	
 		output.sphereCount = sphereBatchInfo.z;	
 		output.sphereStart = sphereBatchInfo.w;
 	}	
@@ -87,7 +92,9 @@ Shader "Custom/RenderProteins"
 		//}			
 		//output.color = SetHSL(_IngredientColors[output.type].rgb, float3(-1, (output.state == 0) ? 0.35 : 0.5 + (sin(_Time.z * 3) + 1) / 4 , -1)) * shadowFactor;		
 	
-		float4 pos = mul(UNITY_MATRIX_MVP, float4(input[0].pos, 1));
+		float4 viewPos = mul(UNITY_MATRIX_MV, float4(input[0].pos, 1));
+		viewPos -= normalize( viewPos ) * input[0].radius;
+		float4 projPos = mul(UNITY_MATRIX_P, float4(viewPos.xyz, 1));
 		float4 offset = mul(UNITY_MATRIX_P, float4(input[0].radius, input[0].radius, 0, 0));
 
 		gs2fs output;	
@@ -104,15 +111,15 @@ Shader "Custom/RenderProteins"
 		float2 triOffset = float2(triBaseHalf, 1.0);
 
 		output.uv = float2(0, 0) - triOffset;
-		output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+		output.pos = projPos + float4(output.uv * offset.xy, 0, 0);
 		triangleStream.Append(output);
 
 		output.uv = float2(triBaseHalf, triHeigth) - triOffset;
-		output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+		output.pos = projPos + float4(output.uv * offset.xy, 0, 0);
 		triangleStream.Append(output);	
 								
 		output.uv = float2(triBase,0) - triOffset;
-		output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+		output.pos = projPos + float4(output.uv * offset.xy, 0, 0);
 		triangleStream.Append(output);
 	}
 
@@ -153,6 +160,7 @@ Shader "Custom/RenderProteins"
 	{	
 		Pass 
 	    {
+			ZTest Lequal
 			ZWrite On
 
 	    	CGPROGRAM			

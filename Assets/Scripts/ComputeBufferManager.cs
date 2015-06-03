@@ -4,30 +4,31 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class ComputeBufferManager : MonoBehaviour
 {
-    public ComputeBuffer InstanceTypes;
-    public ComputeBuffer InstanceStates;
+    public ComputeBuffer UnitInstancePosition;
+
+    public ComputeBuffer ProteinInstanceInfos;
     public ComputeBuffer ProteinInstanceCullFlags;
-    public ComputeBuffer InstancePositions;
-    public ComputeBuffer InstanceRotations;
+    public ComputeBuffer ProteinInstancePositions;
+    public ComputeBuffer ProteinInstanceRotations;
     public ComputeBuffer InstanceDisplayPositions;
     public ComputeBuffer InstanceDisplayRotations;
     
-    public ComputeBuffer IngredientColors;
-    public ComputeBuffer IngredientToggleFlags;
-    public ComputeBuffer IngredientBoundingSpheres;
+    public ComputeBuffer ProteinColors;
+    public ComputeBuffer ProteinVisibilityFlags;
 
     public ComputeBuffer ProteinAtomPositions;
     public ComputeBuffer ProteinClusterPositions;
     public ComputeBuffer ProteinSphereBatchInfos;
 
-    public ComputeBuffer IngredientAtomCount;
-    public ComputeBuffer IngredientAtomStart;
-    public ComputeBuffer IngredientClusterCount;
-    public ComputeBuffer IngredientClusterStart;
+    public ComputeBuffer ProteinAtomCount;
+    public ComputeBuffer ProteinAtomStart;
+    public ComputeBuffer ProteinClusterCount;
+    public ComputeBuffer ProteinClusterStart;
 
     public ComputeBuffer LipidAtomPositions;		
     public ComputeBuffer LipidSphereBatchInfos;
     public ComputeBuffer LipidInstancePositions;
+    public ComputeBuffer LipidInstanceCullFlags;
 
     public ComputeBuffer DnaAtoms;
     public ComputeBuffer DnaControlPoints;
@@ -58,6 +59,24 @@ public class ComputeBufferManager : MonoBehaviour
         }
     }
 
+    // Hack to clear append buffer
+    public static void ClearAppendBuffer(ComputeBuffer appendBuffer)
+    {
+        // This resets the append buffer buffer to 0
+        var dummy1 = RenderTexture.GetTemporary(8, 8, 24, RenderTextureFormat.ARGB32);
+        var dummy2 = RenderTexture.GetTemporary(8, 8, 24, RenderTextureFormat.ARGB32);
+        var active = RenderTexture.active;
+
+        Graphics.SetRandomWriteTarget(1, appendBuffer);
+        Graphics.Blit(dummy1, dummy2);
+        Graphics.ClearRandomWriteTargets();
+
+        RenderTexture.active = active;
+
+        dummy1.Release();
+        dummy2.Release();
+    }
+
     void OnEnable()
     {
         InitBuffers();
@@ -70,35 +89,35 @@ public class ComputeBufferManager : MonoBehaviour
 
     void InitBuffers ()
     {
+        if (UnitInstancePosition == null) UnitInstancePosition = new ComputeBuffer(100, 16);
+
         // Instance data
-        if (InstanceTypes == null) InstanceTypes = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 4);
-        if (InstanceStates == null) InstanceStates = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 4);
-        if (ProteinInstanceCullFlags == null) ProteinInstanceCullFlags = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 4);
-        if (InstancePositions == null) InstancePositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (InstanceRotations == null) InstanceRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (ProteinInstanceInfos == null) ProteinInstanceInfos = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (ProteinInstanceCullFlags == null) ProteinInstanceCullFlags = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (ProteinInstancePositions == null) ProteinInstancePositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
+        if (ProteinInstanceRotations == null) ProteinInstanceRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
         if (InstanceDisplayPositions == null) InstanceDisplayPositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
         if (InstanceDisplayRotations == null) InstanceDisplayRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-
         if (ProteinSphereBatchInfos == null) ProteinSphereBatchInfos = new ComputeBuffer(SceneManager.NumProteinSphereBatchesMax, 16, ComputeBufferType.Append);
 
         // Ingredient data
-        if (IngredientColors == null) IngredientColors = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
-        if (IngredientToggleFlags == null) IngredientToggleFlags = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
-        if (IngredientBoundingSpheres == null) IngredientBoundingSpheres = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
+        if (ProteinColors == null) ProteinColors = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
+        if (ProteinVisibilityFlags == null) ProteinVisibilityFlags = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
 
         // Atom data
         if (ProteinAtomPositions == null) ProteinAtomPositions = new ComputeBuffer(SceneManager.NumAtomMax, 16);
-        if (IngredientAtomCount == null) IngredientAtomCount = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
-        if (IngredientAtomStart == null) IngredientAtomStart = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
+        if (ProteinAtomCount == null) ProteinAtomCount = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
+        if (ProteinAtomStart == null) ProteinAtomStart = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
         
         // Cluster data
         if (ProteinClusterPositions == null) ProteinClusterPositions = new ComputeBuffer(SceneManager.NumAtomMax, 16);
-        if (IngredientClusterCount == null) IngredientClusterCount = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
-        if (IngredientClusterStart == null) IngredientClusterStart = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
+        if (ProteinClusterCount == null) ProteinClusterCount = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
+        if (ProteinClusterStart == null) ProteinClusterStart = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
 
-        // Cluster data
+        // Lipid data
         if (LipidAtomPositions == null) LipidAtomPositions = new ComputeBuffer(SceneManager.NumLipidAtomMax, 16);
         if (LipidSphereBatchInfos == null) LipidSphereBatchInfos = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 16);
+        if (LipidInstanceCullFlags == null) LipidInstanceCullFlags = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 4);
         if (LipidInstancePositions == null) LipidInstancePositions = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 16);
 
         // Dna data
@@ -109,29 +128,29 @@ public class ComputeBufferManager : MonoBehaviour
 	// Update is called once per frame
 	void ReleaseBuffers ()
     {
-        if (InstanceTypes != null) { InstanceTypes.Release(); InstanceTypes = null; }
-	    if (InstanceStates != null) { InstanceStates.Release(); InstanceStates = null; }
+        if (UnitInstancePosition != null) { UnitInstancePosition.Release(); UnitInstancePosition = null; }
+
+        if (ProteinInstanceInfos != null) { ProteinInstanceInfos.Release(); ProteinInstanceInfos = null; }
         if (ProteinInstanceCullFlags != null) { ProteinInstanceCullFlags.Release(); ProteinInstanceCullFlags = null; }
-	    if (InstancePositions != null) { InstancePositions.Release(); InstancePositions = null; }
-	    if (InstanceRotations != null) { InstanceRotations.Release(); InstanceRotations = null; }
+	    if (ProteinInstancePositions != null) { ProteinInstancePositions.Release(); ProteinInstancePositions = null; }
+	    if (ProteinInstanceRotations != null) { ProteinInstanceRotations.Release(); ProteinInstanceRotations = null; }
 	    if (InstanceDisplayPositions != null) { InstanceDisplayPositions.Release(); InstanceDisplayPositions = null; }
 	    if (InstanceDisplayRotations != null) { InstanceDisplayRotations.Release(); InstanceDisplayRotations = null; }
 	    
-        if (IngredientColors != null) { IngredientColors.Release(); IngredientColors = null; }
-	    if (IngredientToggleFlags != null) { IngredientToggleFlags.Release(); IngredientToggleFlags = null; }
-	    if (IngredientBoundingSpheres != null) { IngredientBoundingSpheres.Release(); IngredientBoundingSpheres = null; }
-
+        if (ProteinColors != null) { ProteinColors.Release(); ProteinColors = null; }
+	    if (ProteinVisibilityFlags != null) { ProteinVisibilityFlags.Release(); ProteinVisibilityFlags = null; }
         if (ProteinSphereBatchInfos != null) { ProteinSphereBatchInfos.Release(); ProteinSphereBatchInfos = null; }
         if (ProteinAtomPositions != null) { ProteinAtomPositions.Release(); ProteinAtomPositions = null; }
-	    if (IngredientAtomCount != null) { IngredientAtomCount.Release(); IngredientAtomCount = null; }
-	    if (IngredientAtomStart != null) { IngredientAtomStart.Release(); IngredientAtomStart = null; }
+	    if (ProteinAtomCount != null) { ProteinAtomCount.Release(); ProteinAtomCount = null; }
+	    if (ProteinAtomStart != null) { ProteinAtomStart.Release(); ProteinAtomStart = null; }
         if (ProteinClusterPositions != null) { ProteinClusterPositions.Release(); ProteinClusterPositions = null; }
-	    if (IngredientClusterCount != null) { IngredientClusterCount.Release(); IngredientClusterCount = null; }
-	    if (IngredientClusterStart != null) { IngredientClusterStart.Release(); IngredientClusterStart = null; }
+	    if (ProteinClusterCount != null) { ProteinClusterCount.Release(); ProteinClusterCount = null; }
+	    if (ProteinClusterStart != null) { ProteinClusterStart.Release(); ProteinClusterStart = null; }
 
         if (LipidAtomPositions != null) { LipidAtomPositions.Release(); LipidAtomPositions = null; }
         if (LipidSphereBatchInfos != null) { LipidSphereBatchInfos.Release(); LipidSphereBatchInfos = null; }
         if (LipidInstancePositions != null) { LipidInstancePositions.Release(); LipidInstancePositions = null; }
+        if (LipidInstanceCullFlags != null) { LipidInstanceCullFlags.Release(); LipidInstanceCullFlags = null; }
 
         if (DnaAtoms != null) { DnaAtoms.Release(); DnaAtoms = null; }
         if (DnaControlPoints != null) { DnaControlPoints.Release(); DnaControlPoints = null; }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using UnityEditor;
 using UnityEngine;
 
@@ -29,52 +30,8 @@ public static class PdbLoader
         if (_pdbDirectories.Contains(directory)) return;
         _pdbDirectories.Add(directory);
     }
-
-    public static string GetPdbFilePath(string pdbName)
-    {
-        if (!Directory.Exists(_defaultPdbDirectory)) Directory.CreateDirectory(_defaultPdbDirectory);
-
-        var path = "";
-
-        foreach (var pdbPath in _pdbDirectories.Select(pdbPath => pdbPath + pdbName + ".pdb").Where(File.Exists))
-        {
-            path = pdbPath;
-            break;
-        }
-		Debug.Log (path);
-		if (String.IsNullOrEmpty (path)) {
-			if (pdbName.Length == 4) {
-				return DownloadPdbFile (pdbName);
-			} else {
-				return DownloadCellPackFile (pdbName);
-			}
-		} else {
-			return path;
-		}
-        //return String.IsNullOrEmpty(path) ? DownloadPdbFile(pdbName) : path;
-    }
-
-	private static string DownloadCellPackFile(string pdbName)
-	{
-		Debug.Log("Downloading pdb file CellPack "+pdbName);
-		var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/other/" + WWW.EscapeURL(pdbName)+".pdb");
-		
-		while (!www.isDone)
-		{
-			EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
-		}
-		EditorUtility.ClearProgressBar();
-		
-		if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
-		
-		var path = _defaultPdbDirectory + pdbName + ".pdb";
-		File.WriteAllText(path, www.text);
-		
-		return path;
-	}
-
-
-    private static string DownloadPdbFile(string pdbName)
+    
+    public static string DownloadPdbFile(string pdbName, string dstPath)
     {
         Debug.Log("Downloading pdb file");
         var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
@@ -85,9 +42,9 @@ public static class PdbLoader
         }
         EditorUtility.ClearProgressBar();
 
-        if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
+        if (!string.IsNullOrEmpty(www.error)) throw new Exception(pdbName + " " + www.error);
 
-        var path = _defaultPdbDirectory + pdbName + ".pdb";
+        var path = dstPath + pdbName + ".pdb";
         File.WriteAllText(path, www.text);
 
         return path;
@@ -118,7 +75,7 @@ public static class PdbLoader
             points[i] -= offsetVector;
     }
 
-    public static List<Vector4> ReadClusterPdbFile(string path)
+    public static List<Vector4> ReadAtomClusters(string path)
     {
         if (!File.Exists(path)) throw new Exception("File not found at: " + path);
 
@@ -140,12 +97,228 @@ public static class PdbLoader
         return clusters;
     }
 
+    public struct Atom
+    {
+        public int residue;
+        public char symbol;
+        public char chainId;
+        public int residueId;
+        public Vector3 position;
+    }
 
     //http://deposit.rcsb.org/adit/docs/pdb_atom_format.html#ATOM
-	public static List<Vector4> ReadPdbFile(string pdbName,bool bmt=false)
+    public static List<Atom> ReadAtomData(string path, bool bmt = false)
     {
-		var path = GetPdbFilePath(pdbName);
         if (!File.Exists(path)) throw new Exception("File not found at: " + path);
+
+        var atoms = new List<Atom>();
+        
+        //fix for wrong PDB file when too many atoms in the file
+        //we need to go to mmCIF format
+        int xi = 30;
+        int yi = 38;
+        int zi = 46;
+        int counter = 0;
+        foreach (var line in File.ReadAllLines(path))
+        {
+            if (line.StartsWith("ATOM"))// || line.StartsWith("HETATM"))
+            {
+                if (bmt)//check if need to fix
+                {
+                    if (atoms.Count == 99999)
+                    {
+                        Debug.Log(atoms.Count + " " + line);
+                        xi += 1;
+                        yi += 1;
+                        zi += 1;
+                    }
+                }
+                /*
+                 * try {
+                    float.Parse(line.Substring(xi, 8));
+                    float.Parse(line.Substring(yi, 8));
+                    float.Parse(line.Substring(zi, 8));
+                }catch (Exception e) {
+                    Debug.Log (line);
+                    Debug.Log (line.Substring(xi, 8));
+                    Debug.Log (line.Substring(yi, 8));
+                    Debug.Log (line.Substring(zi, 8));
+                    throw new Exception("Probleme with parsing: "+atoms.Count+" "+xi);
+                }
+                */
+                var x = float.Parse(line.Substring(xi, 8));
+                var y = float.Parse(line.Substring(yi, 8));
+                var z = float.Parse(line.Substring(zi, 8));
+
+                var atomSymbol = "";
+                if (line.Length >= 78)
+                {
+                    atomSymbol = line.Substring(76, 2).Trim();
+                }
+                else
+                {
+                    atomSymbol = line.Substring(13, 1).Trim();
+                }
+
+                var symbol = atomSymbol[0];
+                var chainId = line.Substring(23, 3)[0];
+                var residueId = int.Parse(line.Substring(23, 3));
+
+                var atom = new Atom
+                {
+                    symbol = symbol,
+                    chainId = chainId,
+                    residueId = residueId,
+                    position = new Vector3(-x, y, z)
+                };
+
+                atoms.Add(atom);
+            }
+
+            if (line.StartsWith("ENDMDL"))
+            {//&&!biomt) {
+                //only parse the first model from a multimodel PDB file
+                break;
+            }
+        }
+
+        Debug.Log("Loaded: " + Path.GetFileName(path) + " num atoms: " + atoms.Count);
+        return atoms;
+    }
+
+    public static List<Vector4> ReadAtomSpheres(string path)
+    {
+        if (!File.Exists(path)) throw new Exception("File not found at: " + path);
+
+        var atomSpheres = new List<Vector4>();
+
+        foreach (var line in File.ReadAllLines(path))
+        {
+            if (line.StartsWith("ATOM"))// || line.StartsWith("HETATM"))
+            {
+                var x = float.Parse(line.Substring(30, 8));
+                var y = float.Parse(line.Substring(38, 8));
+                var z = float.Parse(line.Substring(46, 8));
+
+                var symbol = line.Substring(76, 1)[0];
+                var symbolId = Array.IndexOf(AtomSymbols, symbol);
+                if (symbolId < 0) symbolId = 0;
+
+                atomSpheres.Add(new Vector4(-x, y, z, AtomRadii[symbolId]));
+            }
+        }
+
+        Debug.Log("Loaded: " + Path.GetFileName(path) + " num atoms: " + atomSpheres.Count);
+        return atomSpheres;
+    }
+
+    public static List<Vector4> GetAtomSpheres(List<Atom> atoms)
+    {
+        var spheres = new List<Vector4>();
+        for(int i = 0; i < atoms.Count; i++)
+        {
+            var symbolId = Array.IndexOf(AtomSymbols, atoms[i].symbol);
+            if (symbolId < 0) symbolId = 0;
+
+            spheres.Add(new Vector4(atoms[i].position.x, atoms[i].position.y, atoms[i].position.z, AtomRadii[symbolId]));
+        }
+
+        return spheres;
+    }
+    
+    public static List<Vector4> ClusterAtomsByResidue(List<Atom> atoms, int numAtomsPerResidueCluster, float maxRadius, bool logInfo = true)
+    {
+        var clusters = new List<Vector4>();
+        var atomSpheres = new List<Vector4>();
+
+        var residueCount = 0;
+
+        for (int i = 0; i < atoms.Count; i++)
+        {
+            var symbolId = Array.IndexOf(AtomSymbols, atoms[i].symbol);
+            if (symbolId < 0) symbolId = 0;
+
+            atomSpheres.Add(new Vector4(atoms[i].position.x, atoms[i].position.y, atoms[i].position.z, AtomRadii[symbolId]));
+
+            if (i == atoms.Count -1 || atoms[i].residueId != atoms[i + 1].residueId)
+            {
+                clusters.AddRange(ClusterSpheres(atomSpheres, numAtomsPerResidueCluster, maxRadius));
+                atomSpheres.Clear();
+                residueCount ++;
+            }
+        }
+
+        if (logInfo) Debug.Log("Num residues: " + residueCount + " num clusters: " + clusters.Count);
+
+        return clusters;
+    }
+
+    public static List<Vector4> ClusterAtomsByChain(List<Atom> atoms, int numResiduesPerChainCluster, float maxRadius)
+    {
+        var clusters = new List<Vector4>();
+        var atomSpheres = new List<Atom>();
+
+        var chainCount = 0;
+
+        for (int i = 0; i < atoms.Count; i++)
+        {
+            var symbolId = Array.IndexOf(AtomSymbols, atoms[i].symbol);
+            if (symbolId < 0) symbolId = 0;
+
+            atomSpheres.Add(atoms[i]);
+
+            if (i == atoms.Count - 1 || atoms[i].chainId != atoms[i + 1].chainId)
+            {
+                // Cluster the current chain by residue
+                var residues = ClusterAtomsByResidue(atomSpheres, 10, 5, false);
+                
+                // Cluster the residues in the chain
+                clusters.AddRange(ClusterSpheres(residues, numResiduesPerChainCluster, maxRadius));
+                atomSpheres.Clear();
+                chainCount++;
+            }
+        }
+
+        Debug.Log("Num chains: " + chainCount + " num clusters: " + clusters.Count);
+
+        return clusters;
+    }
+
+    private static List<Vector4> ClusterSpheres(List<Vector4> residueAtoms, int numAtomsPerCluster, float maxRadius)
+    {
+        var numAtomPerCluster = Mathf.Min(residueAtoms.Count, numAtomsPerCluster);
+        var numClusters = (int)Mathf.Floor(residueAtoms.Count / (float)numAtomPerCluster);
+        var clusters = new List<Vector4>();
+
+        for (int i = 0; i < numClusters; i++)
+        {
+            var rangeIndex = i * numAtomPerCluster;
+            var rangeCount = numAtomPerCluster;
+
+            if (i == numClusters - 1)
+            {
+                rangeCount += residueAtoms.Count - (rangeIndex + rangeCount);
+            }
+
+            var bounds = GetBounds(residueAtoms.GetRange(rangeIndex, rangeCount));
+            var radius = Vector3.Magnitude(bounds.extents) * 0.5f;
+
+            //if (radius > 10)
+            //{
+            //    int a = 0;
+            //}
+
+            var clusterPos = new Vector4(bounds.center.x, bounds.center.y, bounds.center.z, Mathf.Min(radius, maxRadius));
+            clusters.Add(clusterPos);
+        }
+
+        return clusters;
+    }
+
+    //http://deposit.rcsb.org/adit/docs/pdb_atom_format.html#ATOM
+	public static List<Vector4> ReadPdbFile(string path,bool bmt=false)
+    {
+		if (!File.Exists(path)) throw new Exception("File not found at: " + path);
 
         var atoms = new List<Vector4>();
 		//fix for wrong PDB file when too many atoms in the file
@@ -219,7 +392,7 @@ public static class PdbLoader
     }
 
     //http://deposit.rcsb.org/adit/docs/pdb_atom_format.html#ATOM
-	public static List<Vector4> ReadPdbFile_2(string path,bool bmt=false)
+	public static List<Vector4> ReadPdbFile_2(string path, bool bmt=false)
     {
         if (!File.Exists(path)) throw new Exception("File not found at: " + path);
 
@@ -343,9 +516,8 @@ public static class PdbLoader
     }
 
     ////http://www.rcsb.org/pdb/101/static101.do?p=education_discussion/Looking-at-Structures/bioassembly_tutorial.html
-	public static List<Vector4> ReadBioAssemblyFile(string pdbName)//, out List<Matrix4x4> matrices)
+    public static List<Vector4> ReadBioAssemblyFile(string path)//, out List<Matrix4x4> matrices)
 	{
-		var path = GetPdbFilePath(pdbName);
 		Debug.Log("GetPdbFilePath got "+path);
 		if (!File.Exists(path)) throw new Exception("File not found at: " + path);
 		
@@ -442,7 +614,8 @@ public static class PdbLoader
 				//break;
 			}//break;
 		}
-		Debug.Log("Loaded " + pdbName + " num atoms: " + atoms.Count+" using biomt "+matrices.Count+" "+atoms_unit.Count);
+
+        Debug.Log("Loaded " + Path.GetFileName(path) + " num atoms: " + atoms.Count + " using biomt " + matrices.Count + " " + atoms_unit.Count);
 		return atoms;
 	}
 }

@@ -31,6 +31,8 @@ public class SSAOProEditor : Editor
 	SerializedProperty p_cutoffFalloff;
 	SerializedProperty p_blur;
 	SerializedProperty p_blurDownsampling;
+	SerializedProperty p_blurPasses;
+	SerializedProperty p_blurBilateralThreshold;
 	SerializedProperty p_debugAO;
 
 	void OnEnable()
@@ -54,6 +56,8 @@ public class SSAOProEditor : Editor
 		p_cutoffFalloff = serializedObject.FindProperty("CutoffFalloff");
 		p_blur = serializedObject.FindProperty("Blur");
 		p_blurDownsampling = serializedObject.FindProperty("BlurDownsampling");
+		p_blurPasses = serializedObject.FindProperty("BlurPasses");
+		p_blurBilateralThreshold = serializedObject.FindProperty("BlurBilateralThreshold");
 		p_debugAO = serializedObject.FindProperty("DebugAO");
 	}
 
@@ -104,6 +108,11 @@ public class SSAOProEditor : Editor
 		{
 			EditorGUI.indentLevel++;
 			EditorGUILayout.PropertyField(p_blurDownsampling, new GUIContent("Blur Downsampling", "The resolution at which the blur should be performed, see the Downsampling parameter"));
+			EditorGUILayout.PropertyField(p_blurPasses, new GUIContent("Blur Passes", "The number of blur passes to apply (more means smoother but slower)"));
+
+			if (p_blur.intValue == (int)SSAOPro.BlurMode.HighQualityBilateral)
+				EditorGUILayout.PropertyField(p_blurBilateralThreshold, new GUIContent("Depth Threshold", "Threshold used to compare the depth of each fragment (blur sharpness)"));
+
 			EditorGUI.indentLevel--;
 		}
 

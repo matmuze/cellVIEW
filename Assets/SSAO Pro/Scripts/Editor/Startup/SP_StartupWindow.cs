@@ -20,7 +20,6 @@ public class SP_StartupWindow : EditorWindow
 	public static string identifier = "TH_SSAOPro";
 	static string pathChangelog = "Assets/SSAO Pro/Changelog.txt";
 	static string pathImages = "Assets/SSAO Pro/Scripts/Editor/Startup/Images/";
-	static string pathManual = "/SSAO Pro/Documentation/index.html";
 
 	Texture2D headerPic;
 	string changelogText = "";
@@ -42,13 +41,29 @@ public class SP_StartupWindow : EditorWindow
 	[MenuItem("Help/SSAO Pro Manual", false, 0)]
 	public static void MenuManual()
 	{
-		Application.OpenURL("file://" + Application.dataPath + pathManual);
+		Application.OpenURL("http://thomashourdel.com/ssaopro/doc/");
+	}
+
+	public static void FindAssets()
+	{
+		// Get the relative data path
+		string[] results = AssetDatabase.FindAssets("SSAOPro_v2", null);
+		if (results.Length > 0)
+		{
+			string p = AssetDatabase.GUIDToAssetPath(results[0]);
+			p = System.IO.Path.GetDirectoryName(p);
+			p = p.Substring(0, p.LastIndexOf('/'));
+			pathChangelog = p + "/Changelog.txt";
+			pathImages = p + "/Scripts/Editor/Startup/Images/";
+		}
 	}
 
 	public static bool Init(bool forceOpen)
 	{
+		FindAssets();
+
 		// First line in the changelog is the version string
-		string version = Resources.LoadAssetAtPath<TextAsset>(pathChangelog).text.Split('\n')[0];
+		string version = ((TextAsset)Resources.LoadAssetAtPath(pathChangelog, typeof(TextAsset))).text.Split('\n')[0];
 
 		if (forceOpen || EditorPrefs.GetString(identifier) != version)
 		{
@@ -67,16 +82,18 @@ public class SP_StartupWindow : EditorWindow
 
 	void OnEnable()
 	{
+		FindAssets();
+
 		string versionColor = EditorGUIUtility.isProSkin ? "#ffffffee" : "#000000ee";
-		changelogText = Resources.LoadAssetAtPath<TextAsset>(pathChangelog).text;
+		changelogText = ((TextAsset)Resources.LoadAssetAtPath(pathChangelog, typeof(TextAsset))).text;
 		changelogText = Regex.Replace(changelogText, @"^[0-9].*", "<color=" + versionColor + "><size=13><b>Version $0</b></size></color>", RegexOptions.Multiline);
 		changelogText = Regex.Replace(changelogText, @"^-.*", "  $0", RegexOptions.Multiline);
 
-		headerPic = Resources.LoadAssetAtPath<Texture2D>(pathImages + "header.jpg");
-		iconTypogenic = Resources.LoadAssetAtPath<Texture2D>(pathImages + "icon-typogenic.png");
-		iconColorful = Resources.LoadAssetAtPath<Texture2D>(pathImages + "icon-colorful.png");
-		iconChromatica = Resources.LoadAssetAtPath<Texture2D>(pathImages + "icon-chromatica.png");
-		iconSSAOPro = Resources.LoadAssetAtPath<Texture2D>(pathImages + "icon-ssaopro.png");
+		headerPic = (Texture2D)Resources.LoadAssetAtPath(pathImages + "header.jpg", typeof(Texture2D));
+		iconTypogenic = (Texture2D)Resources.LoadAssetAtPath(pathImages + "icon-typogenic.png", typeof(Texture2D));
+		iconColorful = (Texture2D)Resources.LoadAssetAtPath(pathImages + "icon-colorful.png", typeof(Texture2D));
+		iconChromatica = (Texture2D)Resources.LoadAssetAtPath(pathImages + "icon-chromatica.png", typeof(Texture2D));
+		iconSSAOPro = (Texture2D)Resources.LoadAssetAtPath(pathImages + "icon-ssaopro.png", typeof(Texture2D));
 	}
 
 	void OnGUI()
@@ -98,7 +115,7 @@ public class SP_StartupWindow : EditorWindow
 		Rect headerRect = new Rect(0, 0, 530, 207);
 		GUI.DrawTexture(headerRect, headerPic, ScaleMode.ScaleAndCrop, false);
 
-#if UNITY_4_3
+#if (UNITY_4_0 || UNITY_4_0_1 || UNITY_4_1 || UNITY_4_2 || UNITY_4_3)
 		GUILayout.Space(204);
 #else
 		GUILayout.Space(214);
@@ -110,10 +127,10 @@ public class SP_StartupWindow : EditorWindow
 			GUILayout.BeginHorizontal();
 
 				if (GUILayout.Button("<b>Documentation</b>\n<size=9>Complete manual, examples, tips & tricks</size>", richButtonStyle, GUILayout.MaxWidth(260), GUILayout.Height(36)))
-					Application.OpenURL("file://" + Application.dataPath + pathManual);
+					Application.OpenURL("http://thomashourdel.com/ssaopro/doc/");
 
 				if (GUILayout.Button("<b>Rate it</b>\n<size=9>Leave a review on the Asset Store</size>", richButtonStyle, GUILayout.Height(36)))
-					Application.OpenURL("https://www.assetstore.unity3d.com/#!/content/22369");
+					Application.OpenURL("com.unity3d.kharma:content/22369");
 
 			GUILayout.EndHorizontal();
 
@@ -147,16 +164,16 @@ public class SP_StartupWindow : EditorWindow
 				GUILayout.FlexibleSpace();
 
 				if (GUILayout.Button(iconTypogenic, iconButtonStyle))
-					Application.OpenURL("https://www.assetstore.unity3d.com/#/content/19182");
+					Application.OpenURL("com.unity3d.kharma:content/19182");
 
 				if (GUILayout.Button(iconChromatica, iconButtonStyle))
-					Application.OpenURL("https://www.assetstore.unity3d.com/#/content/20743");
+					Application.OpenURL("com.unity3d.kharma:content/20743");
 
 				if (GUILayout.Button(iconColorful, iconButtonStyle))
-					Application.OpenURL("https://www.assetstore.unity3d.com/#/content/3842");
+					Application.OpenURL("com.unity3d.kharma:content/3842");
 
 				if (GUILayout.Button(iconSSAOPro, iconButtonStyle))
-					Application.OpenURL("https://www.assetstore.unity3d.com/#/content/22369");
+					Application.OpenURL("com.unity3d.kharma:content/22369");
 
 				GUILayout.FlexibleSpace();
 			GUILayout.EndHorizontal();

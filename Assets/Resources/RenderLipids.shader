@@ -8,7 +8,8 @@ Shader "Custom/RenderLipids"
 	
 	uniform StructuredBuffer<float4> _LipidAtomPositions;		
 	uniform StructuredBuffer<float4> _LipidSphereBatchInfos;	
-	uniform StructuredBuffer<float4> _LipidInstancePositions;	
+	uniform StructuredBuffer<float4> _LipidInstancePositions;
+	uniform StructuredBuffer<int> _LipidInstanceCullFlags;	
 
 	void vs_lipid(uint id : SV_VertexID, out vs2ds output)
 	{		
@@ -20,13 +21,9 @@ Shader "Custom/RenderLipids"
 		output.rot = float4(0,0,0,1);	
 		output.color = float3(1,1,0); // Read color here and pass it to the next levels to avoid unnecessary buffer reads
 		output.pos = _LipidInstancePositions[id.x].xyz * _Scale;
-
-		int enableLod = 1;	
-	
+			
 		// Find visibility
-		int visibilityMask = sphereBatchInfo.w;
-		int frustrumVisibility = (visibilityMask >> 0) & 1;		// Read first bit of the visibilty mask
-		int crossSectionVisibility = (visibilityMask >> 1) & 1; // Read second bit of the visibilty mask
+		bool cullInstance = _LipidInstanceCullFlags[id.x] > 0;
 	
 		float beginRange = _FirstLevelBeingRange;
 		float endRange = 50;		
@@ -42,7 +39,7 @@ Shader "Custom/RenderLipids"
 		output.radiusScale = lerp(radiusMin, radiusMax, radiusLerp) * _Scale;
 		output.decimationFactor = (output.lodLevel == 0 ? 1 : 2);
 		output.sphereStart = sphereBatchInfo.y;
-		output.sphereCount = (crossSectionVisibility == 1 || frustrumVisibility == 1) ? 0 : floor(sphereBatchInfo.x / output.decimationFactor);			
+		output.sphereCount = (cullInstance) ? 0 : floor(sphereBatchInfo.x / output.decimationFactor);			
 	}	
 
 	//--------------------------------------------------------------------------------------

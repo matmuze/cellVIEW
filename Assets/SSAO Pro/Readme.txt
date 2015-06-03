@@ -1,4 +1,4 @@
-Thank you for buying SSAO Pro, I hope it'll fit your needs ! Full documentation is available in the Help menu or in the /SSAO Pro/Documentation/ folder. Open 'index.html' with your favorite web browser.
+Thank you for buying SSAO Pro, I hope it'll fit your needs ! Full documentation is available in the Help menu.
 
 If you have any questions or feedback, you can contact me at :
 

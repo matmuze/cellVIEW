@@ -1,69 +1,41 @@
-﻿uniform	float _Scale;
-uniform	int _NumProteinInstances;
-uniform	int _NumLipidInstances;
+﻿uniform	int _Ping;
+uniform	float _Scale;
 uniform float4 _FrustrumPlanes[6]; 
 
-#pragma kernel CSProteins
-
-uniform	StructuredBuffer<int> _InstanceTypes;
-uniform	StructuredBuffer<int> _InstanceStates;
+uniform	int _NumInstances;
 uniform	StructuredBuffer<float4> _InstancePositions;
-uniform	StructuredBuffer<float> _IngredientBoundingSpheres;
-uniform	RWStructuredBuffer<int> _InstanceCullFlags;
+uniform	RWStructuredBuffer<float4> _InstanceCullFlags;
 
-bool spherePlaneTest( float4 plane, float3 center, float offset)
+bool SpherePlaneTest(float4 plane, float3 center, float radius)
 {
-	return dot(plane.xyz, center - plane.xyz * -plane.w) + offset > 0;
+	return dot(plane.xyz, center - plane.xyz * -plane.w) + radius > 0;
 }
 
-[numthreads(8,1,1)]
-void CSProteins (uint3 id : SV_DispatchThreadID)
-{	
-	if(id.x >= (uint)_NumProteinInstances) return;
-	
-	float3 center = _InstancePositions[id.x].xyz * _Scale;
-	float radius = _IngredientBoundingSpheres[_InstanceTypes[id.x]] * _Scale;
-	
+bool SphereFrustrumTest( float3 center, float radius)
+{
 	bool inFrustrum = true;
 
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[0], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[1], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[2], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[3], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[4], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[5], center, radius);	
-	
-	_InstanceCullFlags[id.x] = (inFrustrum && _InstanceStates[id.x] == 0) ? 0 : 1;
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[0], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[1], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[2], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[3], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[4], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[5], center, radius);	
+
+	return !inFrustrum;
 }
 
-#pragma kernel CSLipids
-
-uniform StructuredBuffer<float4> _LipidInstancePositions;	
-uniform RWStructuredBuffer<float4> _LipidSphereBatchInfos;	
+#pragma kernel FrustrumCulling
 
 [numthreads(8,1,1)]
-void CSLipids (uint3 id : SV_DispatchThreadID)
+void FrustrumCulling (uint3 id : SV_DispatchThreadID)
 {	
-	if(id.x >= (uint)_NumLipidInstances) return;
+	if(id.x >= (uint)_NumInstances) return;
 	
-	float4 sphereBatchInfo = _LipidSphereBatchInfos[id.x];
-	float3 center = _LipidInstancePositions[id.x].xyz * _Scale;
-	float radius = sphereBatchInfo.z * _Scale;
-	
-	bool inFrustrum = true;
+	float4 data = _InstancePositions[id.x];
+	float radius = data.w * _Scale;
+	float3 center = data.xyz * _Scale;
 
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[0], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[1], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[2], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[3], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[4], center, radius);
-	inFrustrum = inFrustrum & spherePlaneTest(_FrustrumPlanes[5], center, radius);	
-	
-	int visibilityMask = sphereBatchInfo.w;	
-
-	// We use the second bit of the visibility mask for cross section visibility
-	// the first bit is reserved for frustrum visibility
-										
-	// Set visibility								// Set bit						// Clear bit
-	_LipidSphereBatchInfos[id.x].w = inFrustrum ? visibilityMask & ~(1 << 0) : visibilityMask | (1 << 0);
+	bool cullInstance = SphereFrustrumTest(center, radius);
+	_InstanceCullFlags[id.x].y = cullInstance ? 1 : 0;	
 }

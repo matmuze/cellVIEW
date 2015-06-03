@@ -167,9 +167,27 @@
 
 
 		// --------------------------------------------------------------------------------
-		// Composite
+		// High Quality Bilateral Blur
 
 		Pass // (7)
+		{
+			CGPROGRAM
+
+				#pragma vertex vert_hqbilateral
+				#pragma fragment frag_hqbilateral
+				
+				#pragma multi_compile HIGH_PRECISION_DEPTHMAP_ON  HIGH_PRECISION_DEPTHMAP_OFF
+
+				#include "SSAOPro.cginc"
+
+			ENDCG
+		}
+
+
+		// --------------------------------------------------------------------------------
+		// Composite
+
+		Pass // (8)
 		{
 			CGPROGRAM
 

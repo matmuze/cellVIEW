@@ -64,6 +64,27 @@
             }
             ENDCG
         }
+
+		Pass 
+		{
+			ZTest Always
+
+            CGPROGRAM
+            #pragma vertex vert_img
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+			
+			Texture3D<float> _HiZMap;
+
+            void frag(v2f_img i, out float4 color : COLOR0) 
+			{       
+				uint2 coord = uint2(i.uv.x * _ScreenParams.x, i.uv.y * _ScreenParams.y);   
+				color.r = Linear01Depth(_HiZMap[uint3(coord, 4)]); 
+            }
+            
+            ENDCG
+        }
 	}	
 
 	FallBack "Diffuse"

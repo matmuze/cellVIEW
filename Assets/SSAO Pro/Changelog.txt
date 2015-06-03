@@ -1,3 +1,12 @@
+1.5
+- Added : New blur filter, "High Quality Bilateral". Smoother, more stable than the older "Bilateral" and with a lot less pattern artifacts (performances should be very close to the old blur).
+- Added : Optional multi-pass blur (all filters).
+- Fixed : Soft Particles not working correctly when the High Precision Depth Buffer is enabled (Unity 4.x).
+- Fixed : A few bugs with the startup screen.
+- Fixed : Minor compilation bug on PS4.
+- Fixed : Tiny bug with the older "Bilateral" blur filter.
+- Removed the documentation from the package, it's now online only. Benefits : the package size is a smaller and imports faster.
+
 1.4
 - Added : New "Ultra" preset (20 samples).
 - Removed : The "High Precision" field had no use in Unity 5 and will only displayed in Unity 4.

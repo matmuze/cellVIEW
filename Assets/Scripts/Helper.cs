@@ -231,6 +231,22 @@ public static class Helper
         return matrix;
     }
 
+    public static float[] Matrix4X4ToFloatArray(Matrix4x4 matrix)
+    {
+        var floatArray = new float[16];
+
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+               floatArray[i * 4 + j] =  matrix[j, i];
+            }
+        }
+
+        return floatArray;
+    }
+
+
     public static float[] FrustrumPlanesAsFloats(Camera _camera)
     {
         var planes = GeometryUtility.CalculateFrustumPlanes(_camera);

@@ -18,12 +18,13 @@ public class SceneRenderer : MonoBehaviour
     public Shader RenderLipidsShader;
     public Shader RenderProteinsShader;
 
-    public ComputeShader ClearBufferCS;
+    public ComputeShader ClearOcclusionFlagsCS;
     public ComputeShader CrossSectionCS;
     public ComputeShader BatchInstancesCS;
     public ComputeShader BrownianMotionCS;
     public ComputeShader FrustrumCullingCS;
     public ComputeShader RopeConstraintsCS;
+    public ComputeShader OcclusionCullingCS;
 
     /*****/
 
@@ -37,7 +38,7 @@ public class SceneRenderer : MonoBehaviour
 
     private Camera _camera;
     private ComputeBuffer _argBuffer;
-    private RenderTexture _hizBuffer;
+    private RenderTexture _HiZMap;
 
     /*****/
 
@@ -75,11 +76,11 @@ public class SceneRenderer : MonoBehaviour
         if (_compositeMaterial != null) DestroyImmediate(_compositeMaterial);
         if (_contourMaterial != null) DestroyImmediate(_contourMaterial); 
         
-        if (_hizBuffer != null)
+        if (_HiZMap != null)
         {
-            _hizBuffer.Release();
-            DestroyImmediate(_hizBuffer);
-            _hizBuffer = null;
+            _HiZMap.Release();
+            DestroyImmediate(_HiZMap);
+            _HiZMap = null;
         }
 
         if (_argBuffer != null)
@@ -106,28 +107,26 @@ public class SceneRenderer : MonoBehaviour
         _contourMaterial.SetFloat("_ContourStrength", DisplaySettings.Instance.ContourStrength);
 
         // Protein params
+        _renderProteinsMaterial.SetInt("_EnableLod", Convert.ToInt32(DisplaySettings.Instance.EnableLod));
         _renderProteinsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
         _renderProteinsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
         _renderProteinsMaterial.SetVector("_CameraForward", _camera.transform.forward);
         _renderProteinsMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
 
-        _renderProteinsMaterial.SetBuffer("_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
-        _renderProteinsMaterial.SetBuffer("_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        _renderProteinsMaterial.SetBuffer("_InstancePositions",
+        _renderProteinsMaterial.SetBuffer("_ProteinInstanceInfo", ComputeBufferManager.Instance.ProteinInstanceInfos);
+        _renderProteinsMaterial.SetBuffer("_ProteinInstancePositions",
             (DisplaySettings.Instance.EnableBrownianMotion) ?
-            ComputeBufferManager.Instance.InstanceDisplayPositions : ComputeBufferManager.Instance.InstancePositions);
+            ComputeBufferManager.Instance.InstanceDisplayPositions : ComputeBufferManager.Instance.ProteinInstancePositions);
 
-        _renderProteinsMaterial.SetBuffer("_InstanceRotations",
+        _renderProteinsMaterial.SetBuffer("_ProteinInstanceRotations",
             (DisplaySettings.Instance.EnableBrownianMotion) ?
-            ComputeBufferManager.Instance.InstanceDisplayRotations : ComputeBufferManager.Instance.InstanceRotations);
+            ComputeBufferManager.Instance.InstanceDisplayRotations : ComputeBufferManager.Instance.ProteinInstanceRotations);
 
-        _renderProteinsMaterial.SetBuffer("_ProteinBoundingSpheres", ComputeBufferManager.Instance.IngredientBoundingSpheres);
-        _renderProteinsMaterial.SetBuffer("_ProteinCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
-        _renderProteinsMaterial.SetBuffer("_IngredientColors", ComputeBufferManager.Instance.IngredientColors);
+        _renderProteinsMaterial.SetBuffer("_IngredientColors", ComputeBufferManager.Instance.ProteinColors);
         _renderProteinsMaterial.SetBuffer("_ProteinAtomPositions", ComputeBufferManager.Instance.ProteinAtomPositions);
         _renderProteinsMaterial.SetBuffer("_ProteinClusterPositions", ComputeBufferManager.Instance.ProteinClusterPositions);
         _renderProteinsMaterial.SetBuffer("_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
-        
+
         // Lipid params
         _renderLipidsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
         _renderLipidsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
@@ -137,6 +136,7 @@ public class SceneRenderer : MonoBehaviour
         _renderLipidsMaterial.SetBuffer("_LipidAtomPositions", ComputeBufferManager.Instance.LipidAtomPositions);
         _renderLipidsMaterial.SetBuffer("_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
         _renderLipidsMaterial.SetBuffer("_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
+        _renderLipidsMaterial.SetBuffer("_LipidInstanceCullFlags", ComputeBufferManager.Instance.LipidInstanceCullFlags);
 
         // DNA/RNA data
         _renderDnaMaterial.SetInt("_NumSteps", DisplaySettings.Instance.NumStepsPerSegment);
@@ -198,24 +198,8 @@ public class SceneRenderer : MonoBehaviour
         RopeConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
     }
 
-    private void DoCompute()
+    private void DoBrownianMotion()
     {
-        // Do cross section + filter selection visibility
-        CrossSectionCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
-        CrossSectionCS.SetInt("_NumLipidInstances", SceneManager.Instance.NumLipidInstances);
-        CrossSectionCS.SetInt("_NumProteinInstances", SceneManager.Instance.NumProteinInstances);
-        CrossSectionCS.SetInt("_EnableCrossSection", Convert.ToInt32(DisplaySettings.Instance.EnableCrossSection));
-        CrossSectionCS.SetVector("_CrossSectionPlane", new Vector4(DisplaySettings.Instance.CrossSectionPlaneNormal.x, DisplaySettings.Instance.CrossSectionPlaneNormal.y, DisplaySettings.Instance.CrossSectionPlaneNormal.z, DisplaySettings.Instance.CrossSectionPlaneDistance));
-        CrossSectionCS.SetBuffer(0, "_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.InstancePositions);
-        CrossSectionCS.SetBuffer(0, "_IngredientVisibilityFlags", ComputeBufferManager.Instance.IngredientToggleFlags);
-        CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
-
-        // Do lipid cross section
-        CrossSectionCS.SetBuffer(1, "_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
-        CrossSectionCS.SetBuffer(1, "_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
-        CrossSectionCS.Dispatch(1, (int)Mathf.Ceil(SceneManager.Instance.NumLipidInstances / 8.0f), 1, 1);
-
         // Do Brownian motion
         if (DisplaySettings.Instance.EnableBrownianMotion)
         {
@@ -232,6 +216,146 @@ public class SceneRenderer : MonoBehaviour
         }
     }
 
+    private void ComputeCrossSection()
+    {
+        if (DisplaySettings.Instance.DebugObjectCulling) return;
+
+        CrossSectionCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        CrossSectionCS.SetInt("_EnableCrossSection", Convert.ToInt32(DisplaySettings.Instance.EnableCrossSection));
+        CrossSectionCS.SetVector("_CrossSectionPlane", new Vector4(DisplaySettings.Instance.CrossSectionPlaneNormal.x, DisplaySettings.Instance.CrossSectionPlaneNormal.y, DisplaySettings.Instance.CrossSectionPlaneNormal.z, DisplaySettings.Instance.CrossSectionPlaneDistance));
+
+        // Compute protein cross section 
+        CrossSectionCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
+        CrossSectionCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
+        CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
+        CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+
+        // Compute lipid cross section 
+        //CrossSectionCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
+        //CrossSectionCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.LipidInstanceCullFlags);
+        //CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
+        //CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumLipidInstances / 8.0f), 1, 1);
+    }
+
+    private void ComputeFrustrumCulling()
+    {
+        if (DisplaySettings.Instance.DebugObjectCulling) return;
+
+        
+        FrustrumCullingCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        FrustrumCullingCS.SetFloats("_FrustrumPlanes", Helper.FrustrumPlanesAsFloats(_camera));
+
+        // Compute protein frustrum culling
+        FrustrumCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
+        FrustrumCullingCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
+        FrustrumCullingCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
+        FrustrumCullingCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+
+        // Compute lipids frustrum culling
+        //FrustrumCullingCS.SetInt("_NumLipidInstances", SceneManager.Instance.NumLipidInstances);
+        //FrustrumCullingCS.SetBuffer(1, "_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
+        //FrustrumCullingCS.SetBuffer(1, "_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
+        //FrustrumCullingCS.Dispatch(1, (int)Mathf.Ceil(SceneManager.Instance.NumLipidInstances / 8.0f), 1, 1);
+    }
+
+    private Matrix4x4 _previousFrameInverseViewProjMatrix;
+
+    private void ComputeHiZMap(RenderTexture depthBuffer)
+    {
+        // Hierachical depth buffer
+        if (_HiZMap == null || _HiZMap.width != Screen.width || _HiZMap.height != Screen.height)
+        {
+            if (_HiZMap != null)
+            {
+                _HiZMap.Release();
+                DestroyImmediate(_HiZMap);
+            }
+
+            _HiZMap = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RFloat);
+            _HiZMap.enableRandomWrite = true;
+            _HiZMap.useMipMap = false;
+            _HiZMap.isVolume = true;
+            _HiZMap.volumeDepth = 24;
+            //_HiZMap.filterMode = FilterMode.Point;
+            _HiZMap.wrapMode = TextureWrapMode.Clamp;
+            _HiZMap.Create();
+        }
+
+        OcclusionCullingCS.SetInt("_ScreenWidth", Screen.width);
+        OcclusionCullingCS.SetInt("_ScreenHeight", Screen.height);
+
+        OcclusionCullingCS.SetTexture(0, "_RWHiZMap", _HiZMap);
+        OcclusionCullingCS.SetTexture(0, "_DepthBuffer", depthBuffer);
+        OcclusionCullingCS.Dispatch(0, (int)Mathf.Ceil(Screen.width / 8.0f), (int)Mathf.Ceil(Screen.height / 8.0f), 1);
+
+        OcclusionCullingCS.SetTexture(1, "_RWHiZMap", _HiZMap);
+        for (int i = 1; i < 12; i++)
+        {
+            OcclusionCullingCS.SetInt("_CurrentLevel", i);
+            OcclusionCullingCS.Dispatch(1, (int)Mathf.Ceil(Screen.width / 8.0f), (int)Mathf.Ceil(Screen.height / 8.0f), 1);
+        }
+
+        _previousFrameInverseViewProjMatrix = (GL.GetGPUProjectionMatrix(_camera.projectionMatrix, false) * _camera.worldToCameraMatrix).inverse;
+    }
+
+    private void ComputeOcclusionCulling(bool clearOcclusionFlags = false)
+    {
+        if (_HiZMap == null || DisplaySettings.Instance.DebugObjectCulling) return;
+
+        OcclusionCullingCS.SetInt("_ClearOcclusionFlags", Convert.ToInt32(clearOcclusionFlags));
+        OcclusionCullingCS.SetInt("_ScreenWidth", Screen.width);
+        OcclusionCullingCS.SetInt("_ScreenHeight", Screen.height);
+        OcclusionCullingCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        OcclusionCullingCS.SetFloats("_FrustrumPlanes", Helper.FrustrumPlanesAsFloats(_camera));
+        OcclusionCullingCS.SetFloats("_CameraViewMatrix", Helper.Matrix4X4ToFloatArray(_camera.worldToCameraMatrix));
+        OcclusionCullingCS.SetFloats("_CameraProjMatrix", Helper.Matrix4X4ToFloatArray(GL.GetGPUProjectionMatrix(_camera.projectionMatrix, false)));
+        OcclusionCullingCS.SetFloats("_PreviousFrameInverseViewProjMatrix", Helper.Matrix4X4ToFloatArray(_previousFrameInverseViewProjMatrix));
+
+        OcclusionCullingCS.SetTexture(2, "_HiZMap", _HiZMap);
+
+        // Do protein occlusion culling
+        OcclusionCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
+        OcclusionCullingCS.SetBuffer(2, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
+        OcclusionCullingCS.SetBuffer(2, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
+        OcclusionCullingCS.Dispatch(2, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+
+        // Do lipid occlusion culling
+        //OcclusionCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
+        //OcclusionCullingCS.SetBuffer(2, "_InstanceCullFlags", ComputeBufferManager.Instance.LipidInstanceCullFlags);
+        //OcclusionCullingCS.SetBuffer(2, "_InstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
+        //OcclusionCullingCS.Dispatch(2, (int)Mathf.Ceil(SceneManager.Instance.NumLipidInstances / 8.0f), 1, 1);
+    }
+    
+    private void ComputeBatching()
+    {
+        // Do sphere batching
+        BatchInstancesCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        BatchInstancesCS.SetInt("_EnableLod", Convert.ToInt32(DisplaySettings.Instance.EnableLod));
+        BatchInstancesCS.SetInt("_NumLevels", SceneManager.Instance.NumLodLevels);
+        BatchInstancesCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
+        BatchInstancesCS.SetVector("_CameraForward", _camera.transform.forward);
+        BatchInstancesCS.SetVector("_CameraPosition", _camera.transform.position);
+        BatchInstancesCS.SetFloats("_LodLevelsInfos", DisplaySettings.Instance.LodLevels);
+        BatchInstancesCS.SetBuffer(0, "_ProteinInstanceInfo", ComputeBufferManager.Instance.ProteinInstanceInfos);
+        BatchInstancesCS.SetBuffer(0, "_ProteinInstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
+        BatchInstancesCS.SetBuffer(0, "_ProteinInstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
+        BatchInstancesCS.SetBuffer(0, "_ProteinVisibilityFlag", ComputeBufferManager.Instance.ProteinVisibilityFlags);
+        BatchInstancesCS.SetBuffer(0, "_IngredientAtomCount", ComputeBufferManager.Instance.ProteinAtomCount);
+        BatchInstancesCS.SetBuffer(0, "_IngredientAtomStart", ComputeBufferManager.Instance.ProteinAtomStart);
+        BatchInstancesCS.SetBuffer(0, "_IngredientClusterCount", ComputeBufferManager.Instance.ProteinClusterCount);
+        BatchInstancesCS.SetBuffer(0, "_IngredientClusterStart", ComputeBufferManager.Instance.ProteinClusterStart);
+        BatchInstancesCS.SetBuffer(0, "_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
+        BatchInstancesCS.Dispatch(0, (int)Mathf.Ceil((float)SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+
+        // Count sphere batches
+        ComputeBuffer.CopyCount(ComputeBufferManager.Instance.ProteinSphereBatchInfos, _argBuffer, 0);
+
+        // Debug batched instances
+        //int[] args = new int[] { 0, 1, 0, 0 };
+        //argBuffer.GetData(args);
+        //Debug.Log("num batches " + args[0]);
+    }
+
     [ImageEffectOpaque]
     void OnRenderImage(RenderTexture src, RenderTexture dst)
     {
@@ -242,75 +366,23 @@ public class SceneRenderer : MonoBehaviour
             Graphics.Blit(src, dst); return;
         }
         
-        // Hierachical depth buffer
-        if (_hizBuffer == null || _hizBuffer.width != Screen.width || _hizBuffer.height != Screen.height)
-        {
-            if (_hizBuffer != null)
-            {
-                _hizBuffer.Release();
-                DestroyImmediate(_hizBuffer);
-            }
+        ComputeCrossSection();
 
-            _hizBuffer = new RenderTexture(src.width, src.height, 24, RenderTextureFormat.Depth);
-            _hizBuffer.useMipMap = true;
-            _hizBuffer.generateMips = false;
-            _hizBuffer.Create();
-        }
+        ComputeFrustrumCulling();
 
-        DoCompute();
+        // Do pre-render occlusion test
+        ComputeOcclusionCulling(false);
 
-        // Frustrum cull proteins
-        FrustrumCullingCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
-        FrustrumCullingCS.SetInt("_NumLipidInstances", SceneManager.Instance.NumLipidInstances);
-        FrustrumCullingCS.SetInt("_NumProteinInstances", SceneManager.Instance.NumProteinInstances);
-        FrustrumCullingCS.SetFloats("_FrustrumPlanes", Helper.FrustrumPlanesAsFloats(_camera));
-        FrustrumCullingCS.SetBuffer(0, "_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
-        FrustrumCullingCS.SetBuffer(0, "_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        FrustrumCullingCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
-        FrustrumCullingCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.InstancePositions);
-        FrustrumCullingCS.SetBuffer(0, "_IngredientBoundingSpheres", ComputeBufferManager.Instance.IngredientBoundingSpheres);
-        FrustrumCullingCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
-
-        // Frustrum cull lipids
-        FrustrumCullingCS.SetBuffer(1, "_LipidSphereBatchInfos", ComputeBufferManager.Instance.LipidSphereBatchInfos);
-        FrustrumCullingCS.SetBuffer(1, "_LipidInstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);
-        FrustrumCullingCS.Dispatch(1, (int)Mathf.Ceil(SceneManager.Instance.NumLipidInstances / 8.0f), 1, 1);
-        
-        // Do sphere batching
-        BatchInstancesCS.SetFloat("_Scale", DisplaySettings.Instance.Scale);
-        BatchInstancesCS.SetInt("_EnableLod", Convert.ToInt32(DisplaySettings.Instance.EnableLod));
-        BatchInstancesCS.SetInt("_NumLevels", SceneManager.NumLodLevels);
-        BatchInstancesCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
-        BatchInstancesCS.SetVector("_CameraForward", _camera.transform.forward);
-        BatchInstancesCS.SetVector("_CameraPosition", _camera.transform.position);
-        BatchInstancesCS.SetFloats("_LodLevelsInfos", DisplaySettings.Instance.LodLevels);
-        BatchInstancesCS.SetBuffer(0, "_InstanceTypes", ComputeBufferManager.Instance.InstanceTypes);
-        BatchInstancesCS.SetBuffer(0, "_InstanceStates", ComputeBufferManager.Instance.InstanceStates);
-        BatchInstancesCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
-        BatchInstancesCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.InstancePositions);
-        BatchInstancesCS.SetBuffer(0, "_IngredientAtomCount", ComputeBufferManager.Instance.IngredientAtomCount);
-        BatchInstancesCS.SetBuffer(0, "_IngredientAtomStart", ComputeBufferManager.Instance.IngredientAtomStart);
-        BatchInstancesCS.SetBuffer(0, "_IngredientClusterCount", ComputeBufferManager.Instance.IngredientClusterCount);
-        BatchInstancesCS.SetBuffer(0, "_IngredientClusterStart", ComputeBufferManager.Instance.IngredientClusterStart);
-        BatchInstancesCS.SetBuffer(0, "_SubInstanceInformations", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
-        BatchInstancesCS.Dispatch(0, (int)Mathf.Ceil((float)SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
-        
-        // Count sphere batches
-        ComputeBuffer.CopyCount(ComputeBufferManager.Instance.ProteinSphereBatchInfos, _argBuffer, 0);
-
-        // Debug batched instances
-        //int[] args = new int[] { 0, 1, 0, 0 };
-        //argBuffer.GetData(args);
-        //Debug.Log("num batches " + args[0]);
+        ComputeBatching();
 
         // This resets the append buffer buffer to 0
         Graphics.SetRandomWriteTarget(1, ComputeBufferManager.Instance.ProteinSphereBatchInfos);
         Graphics.Blit(src, dst);
         Graphics.ClearRandomWriteTargets();
-        
-        /*** Start rendering routine ***/
 
         SetShaderParams();
+
+        /*** Start rendering routine ***/
 
         // Declare temp buffers
         var idBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
@@ -320,6 +392,7 @@ public class SceneRenderer : MonoBehaviour
         var colorCompositeBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
         var depthCompositeBuffer = RenderTexture.GetTemporary(src.width, src.height, 24, RenderTextureFormat.Depth);
 
+        // Clear temp buffers
         Graphics.SetRenderTarget(idBuffer);
         GL.Clear(false, true, new Color(1, 1, 1, 1));
 
@@ -329,12 +402,12 @@ public class SceneRenderer : MonoBehaviour
         Graphics.SetRenderTarget(depthNormalsBuffer);
         GL.Clear(true, true, new Color(0.5f, 0.5f, 0, 0));
 
-        // Render scene 
+        // Set render target
         Graphics.SetRenderTarget(new[] { colorBuffer.colorBuffer, idBuffer.colorBuffer }, depthBuffer.depthBuffer);
      
         // Draw lipids
         _renderLipidsMaterial.SetPass(0);
-        Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumLipidInstances);
+        //Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumLipidInstances);
 
         // Draw proteins
         _renderProteinsMaterial.SetPass(0);
@@ -342,14 +415,22 @@ public class SceneRenderer : MonoBehaviour
         
         // Draw RNA
         _renderDnaMaterial.SetPass(0);
-        Graphics.DrawProcedural(MeshTopology.Points, Mathf.Max(SceneManager.Instance.NumDnaSegments - 2, 0)); // Do not draw first and last segments
-        
-        // Do edge detection
+        //Graphics.DrawProcedural(MeshTopology.Points, Mathf.Max(SceneManager.Instance.NumDnaSegments - 2, 0)); // Do not draw first and last segments
+
+        ComputeHiZMap(depthBuffer);
+
+        ClearOcclusionFlagsCS.SetBuffer(0, "_Buffer", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
+        ClearOcclusionFlagsCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+
+        // Do post-render occlusion test
+        ComputeOcclusionCulling(true);
+
+        // Compute edge detection
         _contourMaterial.SetTexture("_IdTexture", idBuffer);
         Graphics.Blit(colorBuffer, colorCompositeBuffer, _contourMaterial, 0);
         Graphics.Blit(colorCompositeBuffer, colorBuffer);
 
-        // Do final compositing with the rest of the scene
+        // Compute final compositing with the rest of the scene
         _compositeMaterial.SetTexture("_ColorTexture", colorBuffer);
         _compositeMaterial.SetTexture("_DepthTexture", depthBuffer);
         Graphics.SetRenderTarget(colorCompositeBuffer.colorBuffer, depthCompositeBuffer.depthBuffer);
@@ -358,7 +439,7 @@ public class SceneRenderer : MonoBehaviour
 
         // Blit final color buffer to dst buffer
         Graphics.Blit(colorCompositeBuffer, dst);
-        
+
         // Set final depth buffer to global depth
         Shader.SetGlobalTexture("_CameraDepthTexture", depthCompositeBuffer);
         Shader.SetGlobalTexture("_CameraDepthNormalsTexture ", depthNormalsBuffer); // It is important to set this otherwise AO will show ghosts
@@ -377,7 +458,7 @@ public class SceneRenderer : MonoBehaviour
         //    DestroyImmediate(idTexture2D);
         //    _leftMouseDown = false;
         //}
-        
+
         // Release temp buffers
         RenderTexture.ReleaseTemporary(idBuffer);
         RenderTexture.ReleaseTemporary(colorBuffer);
@@ -385,6 +466,10 @@ public class SceneRenderer : MonoBehaviour
         RenderTexture.ReleaseTemporary(depthNormalsBuffer);
         RenderTexture.ReleaseTemporary(colorCompositeBuffer);
         RenderTexture.ReleaseTemporary(depthCompositeBuffer);
+        
+        // Debug Hi-Z map
+        //_compositeMaterial.SetTexture("_HiZMap", _HiZMap);
+        //Graphics.Blit(src, dst, _compositeMaterial, 2);
     }
 }
 

@@ -101,12 +101,13 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.ContourStrength = EditorGUILayout.Slider("Contour strength", DisplaySettings.Instance.ContourStrength, 0, 1);
                     DisplaySettings.Instance.ContourOptions = EditorGUILayout.Popup("Contours Options", DisplaySettings.Instance.ContourOptions, _contourOptionsLabels);
                     DisplaySettings.Instance.EnableShadows = EditorGUILayout.Toggle("Enable Shadows", DisplaySettings.Instance.EnableShadows);
-                    DisplaySettings.Instance.EnableOcclusionCulling = EditorGUILayout.Toggle("Enable Object Culling", DisplaySettings.Instance.EnableOcclusionCulling);
-                    DisplaySettings.Instance.DebugObjectCulling = EditorGUILayout.Toggle("Debug Object Culling", DisplaySettings.Instance.DebugObjectCulling);
+
+                    //DisplaySettings.Instance.EnableOcclusionCulling = EditorGUILayout.Toggle("Enable Culling", DisplaySettings.Instance.EnableOcclusionCulling);
+                    DisplaySettings.Instance.DebugObjectCulling = EditorGUILayout.Toggle("Debug Culling", DisplaySettings.Instance.DebugObjectCulling);
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
 
-                    EditorGUILayout.LabelField("Base Settings", EditorStyles.boldLabel);
+                    EditorGUILayout.LabelField("DNA Settings", EditorStyles.boldLabel);
                     EditorGUI.indentLevel++;
                     DisplaySettings.Instance.EnableDNAConstraints = EditorGUILayout.Toggle("Enable DNA Constraints", DisplaySettings.Instance.EnableDNAConstraints);
                     DisplaySettings.Instance.DistanceContraint = EditorGUILayout.Slider("Distance Constraint", DisplaySettings.Instance.DistanceContraint, 0.01f, 100);
@@ -137,20 +138,17 @@ public class CellPackWindow : EditorWindow
                     {
                         DisplaySettings.Instance.FirstLevelOffset = EditorGUILayout.FloatField("First Level Being Range", DisplaySettings.Instance.FirstLevelOffset);
 
-                        EditorGUI.indentLevel++;
-                            EditorGUILayout.LabelField("Level 0", EditorStyles.boldLabel);
-                            EditorGUI.indentLevel++;
-                                DisplaySettings.Instance.LodLevels[0] = EditorGUILayout.FloatField("End Range", DisplaySettings.Instance.LodLevels[0]);
-                                DisplaySettings.Instance.LodLevels[1] = EditorGUILayout.FloatField("Min Radius", DisplaySettings.Instance.LodLevels[1]);
-                                DisplaySettings.Instance.LodLevels[2] = EditorGUILayout.FloatField("Max Radius", DisplaySettings.Instance.LodLevels[2]);
-                            EditorGUI.indentLevel--;
 
-                            EditorGUILayout.LabelField("Level 1", EditorStyles.boldLabel);
+                        EditorGUI.indentLevel++;
+                        for (int i = 0; i <= SceneManager.Instance.NumLodLevels; i++)
+                        {
+                            EditorGUILayout.LabelField("Level "+i, EditorStyles.boldLabel);
                             EditorGUI.indentLevel++;
-                                DisplaySettings.Instance.LodLevels[4] = EditorGUILayout.FloatField("End Range", DisplaySettings.Instance.LodLevels[4]);
-                                DisplaySettings.Instance.LodLevels[5] = EditorGUILayout.FloatField("Min Radius", DisplaySettings.Instance.LodLevels[5]);
-                                DisplaySettings.Instance.LodLevels[6] = EditorGUILayout.FloatField("Max Radius", DisplaySettings.Instance.LodLevels[6]);
+                            DisplaySettings.Instance.LodLevels[0 + i * 4] = EditorGUILayout.FloatField("End Range", DisplaySettings.Instance.LodLevels[0 + i * 4]);
+                            DisplaySettings.Instance.LodLevels[1 + i * 4] = EditorGUILayout.FloatField("Min Radius", DisplaySettings.Instance.LodLevels[1 + i * 4]);
+                            DisplaySettings.Instance.LodLevels[2 + i * 4] = EditorGUILayout.FloatField("Max Radius", DisplaySettings.Instance.LodLevels[2 + i * 4]);
                             EditorGUI.indentLevel--;
+                        }
                         EditorGUI.indentLevel--;
                     }
                     EditorGUILayout.EndToggleGroup();

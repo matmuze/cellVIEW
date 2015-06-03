@@ -118,14 +118,17 @@ public class SceneManager : MonoBehaviour
 
     public int UnitSize = 0;
 
+    public void SetUnitSize()
+    {
+        UnitSize = InstancePositions.Count;
+    }
+
     public void AddUnitInstance(Vector3 offset)
     {
-       if(UnitSize == 0) UnitSize = InstanceInfos.Count;
-
        for (int i = 0; i < UnitSize; i++)
        {
            var info = InstanceInfos[i];
-           info.w = UnitInstancePositions.Count;
+           //info.w = UnitInstancePositions.Count;
 
            var position = InstancePositions[i];
            position += new Vector4(offset.x, offset.y, offset.z, 0);
@@ -136,13 +139,6 @@ public class SceneManager : MonoBehaviour
            InstancePositions.Add(position);
            InstanceRotations.Add(rotation);
        }
-
-        //if (UnitSize == 0) UnitSize = InstancePositions.Count;
-
-        //if (duplicateData)
-        //{
-        //    
-        //}
     }
     
     public void AddIngredient(string ingredientName, Bounds bounds, List<Vector4> atoms, List<List<Vector4>> clusters = null) 

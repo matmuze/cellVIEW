@@ -252,11 +252,11 @@ public static class CellPackLoader
         //the recipe is optional as it will gave more information than just the result file.
 
 		//check if cytoplasme present
-		if (resultData ["cytoplasme"] != null) 
+        if (resultData["cytoplasme"] != null)
         {
-			var exteriorIngredients = resultData ["cytoplasme"] ["ingredients"];
-			AddRecipeIngredients(exteriorIngredients);
-		}
+            var exteriorIngredients = resultData["cytoplasme"]["ingredients"];
+            AddRecipeIngredients(exteriorIngredients);
+        }
 
         int nComp = resultData["compartments"].Count;
 
@@ -347,18 +347,21 @@ public static class CellPackLoader
         //LoadMembrane();
         //LoadRna();
 
-        //int n = 1;
+        // Tell the manager what is the size of the dataset for duplication
+        SceneManager.Instance.SetUnitSize();
 
-        //for (int i = -n; i < n; i++)
-        //{
-        //    for (int j = -n; j < n; j++)
-        //    {
-        //        for (int k = -n; k < n; k++)
-        //        {
-        //            SceneManager.Instance.AddUnitInstance(new Vector3(i * 1500, j * 1500, k * 1500));
-        //        }
-        //    }
-        //}
+        int n = 1;
+
+        for (int i = -n; i <= n; i++)
+        {
+            for (int j = -n; j <= n; j++)
+            {
+                for (int k = -n; k <= n; k++)
+                {
+                    SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
+                }
+            }
+        }
 
         SceneManager.Instance.UploadAllData();
     }

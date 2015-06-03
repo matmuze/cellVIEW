@@ -125,6 +125,7 @@ void OcclusionCulling (uint3 id : SV_DispatchThreadID)
 	sampledDepthWorldSpace /= sampledDepthWorldSpace.w;
 	float3 sampledDepthViewSpace = mul( _CameraViewMatrix, float4( sampledDepthWorldSpace.xyz, 1 ) ).xyz;		
 		
-	_InstanceCullFlags[id.x].z = (sampledDepthViewSpace.z < closestSpherePointViewSpace.z) ? 0 : 1;		
-	//_InstanceCullFlags[id.x].z = (sphereDepth <= sampledDepth) ? 0 : 1;		
+	//_InstanceCullFlags[id.x].z = (sampledDepthViewSpace.z < closestSpherePointViewSpace.z) ? 0 : 1;
+	//_InstanceCullFlags[id.x].z = 0;		
+	_InstanceCullFlags[id.x].z = (sphereDepth <= sampledDepth) ? 0 : 1;		
 }

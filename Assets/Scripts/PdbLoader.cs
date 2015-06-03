@@ -41,9 +41,38 @@ public static class PdbLoader
             path = pdbPath;
             break;
         }
-
-        return String.IsNullOrEmpty(path) ? DownloadPdbFile(pdbName) : path;
+		Debug.Log (path);
+		if (String.IsNullOrEmpty (path)) {
+			if (pdbName.Length == 4) {
+				return DownloadPdbFile (pdbName);
+			} else {
+				return DownloadCellPackFile (pdbName);
+			}
+		} else {
+			return path;
+		}
+        //return String.IsNullOrEmpty(path) ? DownloadPdbFile(pdbName) : path;
     }
+
+	private static string DownloadCellPackFile(string pdbName)
+	{
+		Debug.Log("Downloading pdb file CellPack "+pdbName);
+		var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/other/" + WWW.EscapeURL(pdbName)+".pdb");
+		
+		while (!www.isDone)
+		{
+			EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
+		}
+		EditorUtility.ClearProgressBar();
+		
+		if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
+		
+		var path = _defaultPdbDirectory + pdbName + ".pdb";
+		File.WriteAllText(path, www.text);
+		
+		return path;
+	}
+
 
     private static string DownloadPdbFile(string pdbName)
     {
@@ -113,19 +142,47 @@ public static class PdbLoader
 
 
     //http://deposit.rcsb.org/adit/docs/pdb_atom_format.html#ATOM
-    public static List<Vector4> ReadPdbFile(string path)
+	public static List<Vector4> ReadPdbFile(string pdbName,bool bmt=false)
     {
+		var path = GetPdbFilePath(pdbName);
         if (!File.Exists(path)) throw new Exception("File not found at: " + path);
 
         var atoms = new List<Vector4>();
-
-        foreach (var line in File.ReadAllLines(path))
+		//fix for wrong PDB file when too many atoms in the file
+		//we need to go to mmCIF format
+		int xi = 30;
+		int yi = 38;
+		int zi = 46;
+		int counter = 0;
+		foreach (var line in File.ReadAllLines(path))
         {
             if (line.StartsWith("ATOM"))// || line.StartsWith("HETATM"))
             {
-                var x = float.Parse(line.Substring(30, 8));
-                var y = float.Parse(line.Substring(38, 8));
-                var z = float.Parse(line.Substring(46, 8));
+				if ( bmt )//check if need to fix
+				{
+					if (atoms.Count == 99999) {
+						Debug.Log (atoms.Count+" "+line);
+						xi+=1;
+						yi+=1;
+						zi+=1;
+					}
+				}
+				/*
+				 * try {
+					float.Parse(line.Substring(xi, 8));
+					float.Parse(line.Substring(yi, 8));
+					float.Parse(line.Substring(zi, 8));
+				}catch (Exception e) {
+					Debug.Log (line);
+					Debug.Log (line.Substring(xi, 8));
+					Debug.Log (line.Substring(yi, 8));
+					Debug.Log (line.Substring(zi, 8));
+					throw new Exception("Probleme with parsing: "+atoms.Count+" "+xi);
+				}
+				*/
+				var x = float.Parse(line.Substring(xi, 8));
+                var y = float.Parse(line.Substring(yi, 8));
+                var z = float.Parse(line.Substring(zi, 8));
 
                 var atomSymbol = "";
                 if (line.Length >= 78)
@@ -149,7 +206,12 @@ public static class PdbLoader
                 //var atom = new Vector4(-x, y, z, symbolId);
                 var atom = new Vector4(-x, y, z, AtomRadii[symbolId]);
                 atoms.Add(atom);
+
             }
+			if (line.StartsWith("ENDMDL")){//&&!biomt) {
+				//only parse the first model from a multimodel PDB file
+				break;
+			}
         }
 
         Debug.Log("Loaded: " + Path.GetFileName(path) + " num atoms: " + atoms.Count);
@@ -157,7 +219,7 @@ public static class PdbLoader
     }
 
     //http://deposit.rcsb.org/adit/docs/pdb_atom_format.html#ATOM
-    public static List<Vector4> ReadPdbFile_2(string path)
+	public static List<Vector4> ReadPdbFile_2(string path,bool bmt=false)
     {
         if (!File.Exists(path)) throw new Exception("File not found at: " + path);
 
@@ -177,9 +239,15 @@ public static class PdbLoader
         {
             var isTer = line.StartsWith("TER") || line.StartsWith("END");
             var isAtom = line.StartsWith("ATOM");
-
+			var isEndml = line.StartsWith("ENDMDL");
             // Flag to mark the begin of a new residue
             bool flushResidue = false;
+
+			if (isEndml)
+			{
+				flushResidue = true;
+				currentResidueId = -1;
+			}
 
             if (isTer)
             {
@@ -212,12 +280,25 @@ public static class PdbLoader
                 var y = float.Parse(line.Substring(38, 8));
                 var z = float.Parse(line.Substring(46, 8));
 
-                var atomSymbol = line.Substring(76, 2).Trim();
-                var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
+				var atomSymbol = "";
+				if (line.Length >= 78)
+				{
+					atomSymbol = line.Substring(76, 2).Trim();
+				}
+				else
+				{
+					atomSymbol = line.Substring(13, 1).Trim();
+				}
+
+				var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
                 if (symbolId < 0) { symbolId = 0; }
 
                 residueAtoms.Add(new Vector4(-x, y, z, AtomRadii[symbolId]));
             }
+			if (isEndml)
+			{
+				break;
+			}
         }
 
         // Last residue from the file
@@ -262,76 +343,107 @@ public static class PdbLoader
     }
 
     ////http://www.rcsb.org/pdb/101/static101.do?p=education_discussion/Looking-at-Structures/bioassembly_tutorial.html
-    //public static void ReadBioAssemblyFile(string pdbName, out List<Vector4> atoms, out List<Matrix4x4> matrices)
-    //{
-    //    var path = GetPdbPath(pdbName);
-    //    if (!File.Exists(path)) throw new Exception("File not found at: " + path);
-
-    //    atoms = new List<Vector4>();
-
-    //    foreach (var line in File.ReadAllLines(path))
-    //    {
-    //        if (line.StartsWith("ATOM") || line.StartsWith("HETATM"))
-    //        {
-    //            var x = float.Parse(line.Substring(30, 8));
-    //            var y = float.Parse(line.Substring(38, 8));
-    //            var z = float.Parse(line.Substring(46, 8));
-
-    //            var atomSymbol = line.Substring(76, 2).Trim();
-    //            //var atomSymbol = line.Substring(13, 1).Trim();
-    //            var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
-    //            if (symbolId < 0)
-    //            {
-    //                Debug.Log("Atom symbol not found: " + atomSymbol);
-    //                symbolId = 0;
-    //            }
-
-    //            var atom = new Vector4(x, y, z, symbolId);
-    //            atoms.Add(atom);
-    //        }
-    //    }
-
-    //    matrices = new List<Matrix4x4>();
-    //    var matrix = new Matrix4x4();
-
-    //    foreach (var line in File.ReadAllLines(path))
-    //    {
-    //        if (line.StartsWith("REMARK 350"))
-    //        {
-    //            if (line.Contains("BIOMT1"))
-    //            {
-    //                matrix = Matrix4x4.identity;
-    //                var split = line.Substring(30).Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
-
-    //                matrix[0, 0] = float.Parse(split[0]);
-    //                matrix[0, 1] = float.Parse(split[1]);
-    //                matrix[0, 2] = float.Parse(split[2]);
-    //                matrix[0, 3] = float.Parse(split[3]);
-    //            }
-
-    //            if (line.Contains("BIOMT2"))
-    //            {
-    //                var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-    //                matrix[1, 0] = float.Parse(split[0]);
-    //                matrix[1, 1] = float.Parse(split[1]);
-    //                matrix[1, 2] = float.Parse(split[2]);
-    //                matrix[1, 3] = float.Parse(split[3]);
-    //            }
-
-    //            if (line.Contains("BIOMT3"))
-    //            {
-    //                var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-    //                matrix[2, 0] = float.Parse(split[0]);
-    //                matrix[2, 1] = float.Parse(split[1]);
-    //                matrix[2, 2] = float.Parse(split[2]);
-    //                matrix[2, 3] = float.Parse(split[3]);
-
-    //                matrices.Add(matrix);
-    //            }
-    //        }
-    //    }
-    //}
+	public static List<Vector4> ReadBioAssemblyFile(string pdbName)//, out List<Matrix4x4> matrices)
+	{
+		var path = GetPdbFilePath(pdbName);
+		Debug.Log("GetPdbFilePath got "+path);
+		if (!File.Exists(path)) throw new Exception("File not found at: " + path);
+		
+		var atoms_unit = new List<Vector4>();
+		var matrices = new List<Matrix4x4>();
+		var matrix = new Matrix4x4();
+		
+		foreach (var line in File.ReadAllLines(path))
+		{
+			if (line.StartsWith("REMARK 350"))
+			{
+				if (line.Contains("BIOMT1"))
+				{
+					matrix = Matrix4x4.identity;
+					var split = line.Substring(30).Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
+					
+					matrix[0, 0] = float.Parse(split[0]);//RxX
+					matrix[0, 1] = float.Parse(split[1]);//RxY
+					matrix[0, 2] = float.Parse(split[2]);//RxZ
+					matrix[0, 3] = float.Parse(split[3]);//TX
+				}
+				
+				if (line.Contains("BIOMT2"))
+				{
+					var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+					
+					matrix[1, 0] = float.Parse(split[0]);//RyX
+					matrix[1, 1] = float.Parse(split[1]);//RyY
+					matrix[1, 2] = float.Parse(split[2]);//RyZ
+					matrix[1, 3] = float.Parse(split[3]);//TY
+				}
+				
+				if (line.Contains("BIOMT3"))
+				{
+					var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+					
+					matrix[2, 0] = float.Parse(split[0]);//RzX
+					matrix[2, 1] = float.Parse(split[1]);//RzY
+					matrix[2, 2] = float.Parse(split[2]);//RzZ
+					matrix[2, 3] = float.Parse(split[3]);//TZ
+					//convert to left hand
+					//					var m = matrix;//.transpose;
+					//					m.SetRow(0,new Vector4(-m[0,0],m[0,1],m[0,2]));
+					//					m.SetRow(1,new Vector4(-m[1,0],m[1,1],m[1,2]));
+					//					m.SetRow(2,new Vector4(-m[2,0],m[2,1],m[2,2])*-1.0f);
+					//					m.SetRow(3,new Vector4(-m[3,0],m[3,1],m[3,2]));
+					
+					matrices.Add(matrix);
+				}
+			}
+			if (line.StartsWith("ATOM") || line.StartsWith("HETATM"))
+			{
+				var x = float.Parse(line.Substring(30, 8));
+				var y = float.Parse(line.Substring(38, 8));
+				var z = float.Parse(line.Substring(46, 8));
+				
+				//var atomSymbol = line.Substring(76, 2).Trim();
+				var atomSymbol = line.Substring(13, 1).Trim();
+				//var atomSymbol = line.Substring(13, 1).Trim();
+				var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
+				if (symbolId < 0)
+				{
+					//Debug.Log("Atom symbol not found: " + atomSymbol);
+					symbolId = 0;
+				}
+				
+				var atom = new Vector4(x, y, z, symbolId);
+				atoms_unit.Add(atom);
+			}
+		}
+		
+		
+		var atoms = new List<Vector4>();
+		for (var i = 0; i < atoms_unit.Count; i++) {
+			foreach (var mat in matrices){
+				//Debug.Log (matrix.ToString());
+				var euler = Helper.euler_from_matrix(mat);
+				//Debug.Log (euler.ToString());
+				var rotation = Helper.MayaRotationToUnity(new Vector3(euler.x,euler.y,euler.z));
+				//var pos = mat.GetRow(3);
+				var pos = mat.GetColumn(3);
+				var ipos=new Vector3(pos.x,pos.y,pos.z);
+				var m = Matrix4x4.TRS(ipos,rotation,new Vector3(1,1,1));
+				var ap = new Vector3(atoms_unit[i].x,atoms_unit[i].y,atoms_unit[i].z);
+				//var p = rotation*( ap + ipos);
+				//Vector3 p = m.MultiplyPoint3x4(ap);
+				Vector3 p = new Vector3(0,0,0);
+				//mat = mat.transpose;
+				p.x= mat[0,3] + (ap.x*mat[0,0]+ap.y*mat[0,1]+ap.z*mat[0,2]); 
+				p.y= mat[1,3] + (ap.x*mat[1,0]+ap.y*mat[1,1]+ap.z*mat[1,2]); 
+				p.z= mat[2,3] + (ap.x*mat[2,0]+ap.y*mat[2,1]+ap.z*mat[2,2]); 
+				var atom = new Vector4(p.x, p.y, p.z, atoms_unit[i].w);
+				atoms.Add(atom);
+				//break;
+			}//break;
+		}
+		Debug.Log("Loaded " + pdbName + " num atoms: " + atoms.Count+" using biomt "+matrices.Count+" "+atoms_unit.Count);
+		return atoms;
+	}
 }
 

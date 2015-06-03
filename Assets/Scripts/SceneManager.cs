@@ -115,7 +115,7 @@ public class SceneManager : MonoBehaviour
     {
         if (IngredientNames.Contains(ingredientName)) return;
 
-        //IngredientToggleFlags.Add(1);
+        IngredientToggleFlags.Add(1);
         IngredientNames.Add(ingredientName);
         IngredientsColors.Add(Helper.GetRandomColor());
         IngredientBoundingSpheres.Add(Vector3.Magnitude(bounds.extents));
@@ -247,7 +247,7 @@ public class SceneManager : MonoBehaviour
         //var bounds = PdbLoader.GetBounds(DnaControlPoints);
         //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
 
-        var atoms = PdbLoader.ReadPdbFile(PdbLoader.GetPdbFilePath("basesingle"));
+        var atoms = PdbLoader.ReadPdbFile("basesingle");
         //var atomBounds = PdbLoader.GetBounds(atoms);
         //PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
         DnaAtoms.AddRange(atoms);
@@ -342,7 +342,7 @@ public class SceneManager : MonoBehaviour
         // Clear ingredient data
         IngredientNames.Clear();
         IngredientsColors.Clear();
-        //IngredientToggleFlags.Clear();
+        IngredientToggleFlags.Clear();
         IngredientBoundingSpheres.Clear();
         
         // Clear atom data

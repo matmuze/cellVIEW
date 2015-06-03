@@ -8,6 +8,7 @@ using SimpleJSON;
 
 public static class CellPackLoader
 {
+	private static string proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
     //private static string _pdbCustererCmd =
     //    @"D:\Projects\Unity5\CellPackViewer\trunk_cluster\Misc\AtomPdbClusterer\clusterPdb.exe";
     
@@ -84,15 +85,91 @@ public static class CellPackLoader
     //    }
     //}
 
+	public static void AddRecipeIngredients(JSONNode recipeDictionary){
+		for (int j = 0; j < recipeDictionary.Count; j++)
+		{
+			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
+			var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
+			if (pdbName == "null") continue;  
+			if (pdbName == "None") continue; 
+			if (pdbName == "") continue;  
+			if (pdbName.StartsWith("EMDB")) continue;			
+			if (pdbName.Contains("1PI7_1vpu_biounit")) continue;
+			var iname = recipeDictionary[j].Value;
+			var pdbPath = proteinDiretory + pdbName + ".pdb";
+			var clusterLevelPath = proteinDiretory + "cluster_levels/" + pdbName + ".pdbL0.txt";
+			Debug.Log("try to get "+pdbName);
+			if (!File.Exists(pdbPath) || !File.Exists(clusterLevelPath))
+			{
+				Debug.Log("Skiping protein: " + pdbName + " because one of its structure file is missing.");
+			}
+			var atoms=new List<Vector4>();
+			var biomt = false;
+			if (recipeDictionary[j]["source"].Count > 2 ){
+				//check for biomt keyword
+				biomt = (bool)recipeDictionary[j]["source"]["biomt"].AsBool;
+				Debug.Log ("biomt "+biomt.ToString());
+				if (biomt) {pdbName= pdbName+"_mm1";}
+					//atoms = PdbLoader.ReadBioAssemblyFile(pdbName);
+			}
+			else {
+				//atoms = PdbLoader.ReadPdbFile(pdbName);
+			}
+			atoms = PdbLoader.ReadPdbFile(pdbName,biomt);
+			var bounds = PdbLoader.GetBounds(atoms);
+
+			// Read atoms from pdb file
+			//var atoms = PdbLoader.ReadPdbFile(pdbPath);
+			//var bounds = PdbLoader.GetBounds(atoms);
+			PdbLoader.OffsetPoints(ref atoms, bounds.center);
+			
+			// Read clusters level 0
+			var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath,biomt); //PdbLoader.ReadClusterPdbFile(clusterLevelPath); //
+			PdbLoader.OffsetPoints(ref clustersLevel0, bounds.center);
+			if (recipeDictionary[j]["source"]["transform"].Count != 1){
+				//translate
+				var tr = recipeDictionary[j]["source"]["transform"]["translate"];//rotate also
+				var offset = new Vector3(-tr[0].AsFloat, tr[1].AsFloat, tr[2].AsFloat);
+				Debug.Log ("translate "+offset.ToString());
+				PdbLoader.OffsetPoints(ref atoms, offset*-1.0f);
+				PdbLoader.OffsetPoints(ref clustersLevel0, offset*-1.0f);
+			}
+			// Add ingredient
+			SceneManager.Instance.AddIngredient(pdbName, bounds, atoms, new List<List<Vector4>> { clustersLevel0 });
+			
+			for (int k = 0; k < recipeDictionary[j]["results"].Count; k++)
+			{
+				var p = recipeDictionary[j]["results"][k][0];
+				var r = recipeDictionary[j]["results"][k][1];
+				
+				var position = new Vector3(-p[0].AsFloat, p[1].AsFloat, p[2].AsFloat);
+				var rot = new Quaternion(r[0].AsFloat, r[1].AsFloat, r[2].AsFloat, r[3].AsFloat);
+				var mat = Helper.quaternion_matrix(rot).transpose;
+				var euler = Helper.euler_from_matrix(mat);
+				var rotation = Helper.MayaRotationToUnity(euler);
+				
+				// Find centered position
+				if (!center) position += Helper.QTransform(Helper.QuanternionToVector4(rotation), bounds.center);
+
+				// Add instance
+				SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
+			}
+			
+			Debug.Log("Added: " + pdbName + " num instances: " + recipeDictionary[j]["results"].Count);
+			Debug.Log("*****");
+		}
+	}
+
     public static void LoadRecipe()
     {
-        var proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
+        //var proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
         if (!Directory.Exists(proteinDiretory)) throw new Exception("No directory found at: " + proteinDiretory);
 
         // Add ingredient pdb path to the loader
         PdbLoader.AddPdbDirectory(proteinDiretory);
 
-        var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
+        //var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
+		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
         if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
 
         var resultData = Helper.parseJson(cellPackSceneJsonPath);
@@ -100,109 +177,21 @@ public static class CellPackLoader
         //we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
         //the recipe is optional as it will gave more information than just the result file.
 
+		//check if cytoplasme present
+		if (resultData ["cytoplasme"] != null) {
+			var exteriorIngredients = resultData ["cytoplasme"] ["ingredients"];
+			AddRecipeIngredients(exteriorIngredients);
+		}
         int nComp = resultData["compartments"].Count;
 
         //I dont do the cytoplasme compartments, will do when Blood will be ready
-        for (int i = 0; i < nComp; i++)
-        {
-            var surfaceIngredients = resultData["compartments"][i]["surface"]["ingredients"];
-            for (int j = 0; j < surfaceIngredients.Count; j++)
-            {
-                var pdbName = surfaceIngredients[j]["source"]["pdb"].Value.Replace(".pdb", "");
-                var center = (bool)surfaceIngredients[j]["source"]["transform"]["center"].AsBool;
-
-                if (pdbName.Contains("1PI7_1vpu_biounit")) continue;
-
-                var pdbPath = proteinDiretory + pdbName + ".pdb";
-                var clusterLevelPath = proteinDiretory + "cluster_levels/" + pdbName + ".pdbL0.txt";
-
-                if (!File.Exists(pdbPath) || !File.Exists(clusterLevelPath))
-                {
-                    Debug.Log("Skiping protein: " + pdbName + " because one of its structure file is missing.");
-                }
-
-                // Read atoms from pdb file
-                var atoms = PdbLoader.ReadPdbFile(pdbPath);
-                var bounds = PdbLoader.GetBounds(atoms);
-                PdbLoader.OffsetPoints(ref atoms, bounds.center);
-
-                // Read clusters level 0
-                var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath); //PdbLoader.ReadClusterPdbFile(clusterLevelPath); //
-                PdbLoader.OffsetPoints(ref clustersLevel0, bounds.center);
-
-                // Add ingredient
-                SceneManager.Instance.AddIngredient(pdbName, bounds, atoms, new List<List<Vector4>> { clustersLevel0 });
-
-                for (int k = 0; k < surfaceIngredients[j]["results"].Count; k++)
-                {
-                    var p = surfaceIngredients[j]["results"][k][0];
-                    var r = surfaceIngredients[j]["results"][k][1];
-
-                    var position = new Vector3(-p[0].AsFloat, p[1].AsFloat, p[2].AsFloat);
-                    var rot = new Quaternion(r[0].AsFloat, r[1].AsFloat, r[2].AsFloat, r[3].AsFloat);
-                    var mat = Helper.quaternion_matrix(rot).transpose;
-                    var euler = Helper.euler_from_matrix(mat);
-                    var rotation = Helper.MayaRotationToUnity(euler);
-
-                    // Find centered position
-                    position += Helper.QTransform(Helper.QuanternionToVector4(rotation), bounds.center);
-
-                    // Add instance
-                    SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
-                }
-
-                Debug.Log("Added: " + pdbName + " num instances: " + surfaceIngredients[j]["results"].Count);
-                Debug.Log("*****");
-            }
-            
-            var interiorIngredients = resultData["compartments"][i]["interior"]["ingredients"];
-            for (int j = 0; j < interiorIngredients.Count; j++)
-            {
-                var pdbName = interiorIngredients[j]["source"]["pdb"].Value.Replace(".pdb", "");
-                var center = (bool)interiorIngredients[j]["source"]["transform"]["center"].AsBool;
-
-                if (pdbName.Contains("1PI7_1vpu_biounit")) continue;
-
-                var pdbPath = proteinDiretory + pdbName + ".pdb";
-                var clusterLevelPath = proteinDiretory + "cluster_levels/" + pdbName + ".pdbL0.txt";
-
-                if (!File.Exists(pdbPath) || !File.Exists(clusterLevelPath))
-                {
-                    Debug.Log("Skiping protein: " + pdbName + " because one of its structure file is missing.");
-                }
-
-                // Read atoms from pdb file
-                var atoms = PdbLoader.ReadPdbFile(pdbPath);
-                var bounds = PdbLoader.GetBounds(atoms);
-                PdbLoader.OffsetPoints(ref atoms, bounds.center);
-
-                // Read clusters level 0
-                var clustersLevel0 = PdbLoader.ReadPdbFile_2(pdbPath); //PdbLoader.ReadClusterPdbFile(clusterLevelPath); 
-                PdbLoader.OffsetPoints(ref clustersLevel0, bounds.center);
-
-                // Add ingredient
-                SceneManager.Instance.AddIngredient(pdbName, bounds, atoms, new List<List<Vector4>> { clustersLevel0 });
-
-                for (int k = 0; k < interiorIngredients[j]["results"].Count; k++)
-                {
-                    var p = interiorIngredients[j]["results"][k][0];
-                    var r = interiorIngredients[j]["results"][k][1];
-                    var position = new Vector3(-p[0].AsFloat, p[1].AsFloat, p[2].AsFloat);
-                    var rot = new Quaternion(r[0].AsFloat, r[1].AsFloat, r[2].AsFloat, r[3].AsFloat);
-                    var mat = Helper.quaternion_matrix(rot); //.transpose;
-                    var euler = Helper.euler_from_matrix(mat);
-                    var rotation = Helper.MayaRotationToUnity(euler);
-
-                    // Find centered position
-                    //position += Helper.QTransform(Helper.QuanternionToVector4(rotation), bounds.center);
-
-                    SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
-                }
-
-                Debug.Log("Added: " + pdbName + " num instances: " + interiorIngredients[j]["results"].Count);
-                Debug.Log("*****");
-            }
-        }
+        for (int i = 0; i < nComp; i++) {
+			var surfaceIngredients = resultData ["compartments"] [i] ["surface"] ["ingredients"];
+			AddRecipeIngredients (surfaceIngredients);
+			var interiorIngredients = resultData ["compartments"] [i] ["interior"] ["ingredients"];
+			AddRecipeIngredients (interiorIngredients);
+		}
+		SceneManager.Instance.UploadAllData();
     }
 
     public static void LoadMembrane()
@@ -238,8 +227,8 @@ public static class CellPackLoader
     public static void LoadScene()
     {
         LoadRecipe();
-        LoadMembrane();
-        LoadRna();
+        //LoadMembrane();
+        //LoadRna();
 
         SceneManager.Instance.UploadAllData();
     }

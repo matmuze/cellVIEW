@@ -1,0 +1,130 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSFillHiZMapFirstLevel
+#pragma kernel CSFillHiZMapSubLevels
+#pragma kernel OcclusionCulling
+
+uniform	float _Scale;
+uniform uint _ScreenWidth;
+uniform uint _ScreenHeight;
+uniform float4 _FrustrumPlanes[6]; 
+uniform float4x4 _CameraViewMatrix;
+uniform float4x4 _CameraProjMatrix;
+
+Texture3D<float> _HiZMap;
+RWTexture3D<float> _RWHiZMap;
+
+//--------------------------------------------------------------------------------------
+
+Texture2D<float> _DepthBuffer;
+
+[numthreads(8,8,1)]
+void CSFillHiZMapFirstLevel (uint3 id : SV_DispatchThreadID)
+{
+    _RWHiZMap[uint3(id.xy, 0)] = _DepthBuffer[id.xy];
+}
+
+//--------------------------------------------------------------------------------------
+
+int _CurrentLevel;
+
+[numthreads(8,8,1)]
+void CSFillHiZMapSubLevels (uint3 id : SV_DispatchThreadID)
+{
+	if(id.x >= _ScreenWidth || id.y >= _ScreenHeight) return;
+
+	int previousLevel = _CurrentLevel - 1;
+	int stepSize = pow(2, previousLevel);
+
+    float za = _RWHiZMap[uint3(id.xy, previousLevel)];
+    float zb = _RWHiZMap[uint3(id.xy + uint2(stepSize, 0), previousLevel)];
+    float zc = _RWHiZMap[uint3(id.xy + uint2(0, stepSize), previousLevel)];
+    float zd = _RWHiZMap[uint3(id.xy + uint2(stepSize, stepSize), previousLevel)] ;
+	
+	_RWHiZMap[uint3(id.xy, _CurrentLevel)] = max ( max ( za , zb ), max ( zc , zd ));
+}
+
+//--------------------------------------------------------------------------------------
+
+bool SpherePlaneTest(float4 plane, float3 center, float radius)
+{
+	return dot(plane.xyz, center - plane.xyz * -plane.w) + radius > 0;
+}
+
+bool SphereFrustrumTest( float3 center, float radius)
+{
+	bool inFrustrum = true;
+
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[0], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[1], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[2], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[3], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[4], center, radius);
+	inFrustrum = inFrustrum & SpherePlaneTest(_FrustrumPlanes[5], center, radius);	
+
+	return !inFrustrum;
+}
+
+//--------------------------------------------------------------------------------------
+
+uniform	int _NumInstances;
+uniform int _ClearOcclusionFlags;
+uniform	StructuredBuffer<float4> _InstancePositions;
+uniform	RWStructuredBuffer<float4> _InstanceCullFlags;
+
+uniform float4x4 _PreviousFrameInverseViewProjMatrix;
+
+[numthreads(8,1,1)]
+void OcclusionCulling (uint3 id : SV_DispatchThreadID)
+{	
+	//if(id.x >= (uint)_NumInstances) return;
+	if(id.x >= (uint)_NumInstances) return;
+
+	float4 cullFlags = _InstanceCullFlags[id.x];
+
+	// if instance has been culled before return
+	if(cullFlags.x == 1 || cullFlags.y == 1) return;
+
+	// if we are in the second pass and the instance has been set to visible then return
+	if(_ClearOcclusionFlags == 0 && cullFlags.z == 0) return;
+
+	float4 data = _InstancePositions[id.x];
+	float radius = data.w * _Scale;
+	float3 center = data.xyz * _Scale;
+		
+
+	// Compute the depth of the bounding sphere
+	float3 sphereCenterViewSpace = mul( _CameraViewMatrix, float4( center, 1 ) ).xyz;	
+	float4 sphereCenterScreenSpace = mul(_CameraProjMatrix, float4(sphereCenterViewSpace, 1) );
+	float4 cornerOffsetScreenSpace = mul(_CameraProjMatrix, float4(radius, radius, 0, 0) );
+
+	float3 closestSpherePointViewSpace  = sphereCenterViewSpace - normalize( sphereCenterViewSpace ) * radius;
+	float4 closestSpherePointScreenSpace = mul( _CameraProjMatrix, float4( closestSpherePointViewSpace, 1 ) );
+	float sphereDepth = closestSpherePointScreenSpace.z / closestSpherePointScreenSpace.w; 
+
+	float4 sphereCornerScreenSpace_0 = sphereCenterScreenSpace + float4(-cornerOffsetScreenSpace.x, -cornerOffsetScreenSpace.y, 0, 0);
+	sphereCornerScreenSpace_0.xy /= sphereCornerScreenSpace_0.w;
+	sphereCornerScreenSpace_0.xy = sphereCornerScreenSpace_0.xy * 0.5 + 0.5;
+	sphereCornerScreenSpace_0.xy *= float2(_ScreenWidth, _ScreenHeight);	
+
+	float4 sphereCornerScreenSpace_1 = sphereCenterScreenSpace + float4(cornerOffsetScreenSpace.x, 0, 0, 0);
+	sphereCornerScreenSpace_1.x /= sphereCornerScreenSpace_1.w;
+	sphereCornerScreenSpace_1.x = sphereCornerScreenSpace_1.x * 0.5 + 0.5;
+	sphereCornerScreenSpace_1.x *= _ScreenWidth;	
+		
+	int pixelWidth = sphereCornerScreenSpace_1.x - sphereCornerScreenSpace_0.x;	
+	int hizMapLevel = floor(log2 (pixelWidth) );	
+	int sampleOffset = pixelWidth - pow(2, hizMapLevel);
+	
+	float sampledDepth = _HiZMap[uint3(sphereCornerScreenSpace_0.x, sphereCornerScreenSpace_0.y, hizMapLevel )];	
+	sampledDepth = max(sampledDepth, _HiZMap[uint3(sphereCornerScreenSpace_0.x + sampleOffset, sphereCornerScreenSpace_0.y, hizMapLevel )]);
+	sampledDepth = max(sampledDepth, _HiZMap[uint3(sphereCornerScreenSpace_0.x, sphereCornerScreenSpace_0.y + sampleOffset, hizMapLevel )]);
+	sampledDepth = max(sampledDepth, _HiZMap[uint3(sphereCornerScreenSpace_0.x + sampleOffset, sphereCornerScreenSpace_0.y + sampleOffset, hizMapLevel )]);
+
+	float2 uv = sphereCenterScreenSpace.xy / sphereCenterScreenSpace.w;
+	float4 sampledDepthWorldSpace = mul(_PreviousFrameInverseViewProjMatrix, float4(uv.xy, sampledDepth, 1.0));
+	sampledDepthWorldSpace /= sampledDepthWorldSpace.w;
+	float3 sampledDepthViewSpace = mul( _CameraViewMatrix, float4( sampledDepthWorldSpace.xyz, 1 ) ).xyz;		
+		
+	_InstanceCullFlags[id.x].z = (sampledDepthViewSpace.z < closestSpherePointViewSpace.z) ? 0 : 1;		
+	//_InstanceCullFlags[id.x].z = (sphereDepth <= sampledDepth) ? 0 : 1;		
+}

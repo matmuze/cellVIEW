@@ -61,6 +61,8 @@ public class SceneManager : MonoBehaviour
     public List<Vector4> DnaAtoms = new List<Vector4>();
     public List<Vector4> DnaControlPoints = new List<Vector4>();
 
+	public int totalNbAtoms=0;
+
     public int NumProteinInstances
     {
         get { return InstancePositions.Count; }

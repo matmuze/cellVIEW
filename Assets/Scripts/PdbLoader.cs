@@ -284,6 +284,16 @@ public static class PdbLoader
         return clusters;
     }
 
+	public static List<Vector4> ClusterAtomsKmeans(List<Atom> atoms, int nSpheres,float scale)
+	{
+		//var clusters = new List<Vector4>();
+		SphereTree km = new SphereTree ();
+		km.setPointsAtoms (atoms);
+		km.cluster_N (nSpheres, scale);
+		var clusters = km.getClusters (scale);
+		return clusters;
+	}
+
     private static List<Vector4> ClusterSpheres(List<Vector4> residueAtoms, int numAtomsPerCluster, float maxRadius)
     {
         var numAtomPerCluster = Mathf.Min(residueAtoms.Count, numAtomsPerCluster);

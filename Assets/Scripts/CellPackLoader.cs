@@ -10,6 +10,7 @@ using Debug = UnityEngine.Debug;
 
 public static class CellPackLoader
 {
+
     public static readonly string ProteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
     //public static readonly string PdbClustererCmd = Application.dataPath + "/../Misc/PdbClusterer/clusterPdb.exe";
 
@@ -150,6 +151,7 @@ public static class CellPackLoader
     {
 		for (int j = 0; j < recipeDictionary.Count; j++)
 		{
+			//if (j == 2 ) break;
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
 			var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
 			var biomt = (bool)recipeDictionary[j]["source"]["biomt"].AsBool;
@@ -191,8 +193,15 @@ public static class CellPackLoader
             var atomClustersL1 = PdbLoader.ClusterAtomsByResidue(atoms, 10, 5);
             PdbLoader.OffsetPoints(ref atomClustersL1, bounds.center);
 
-            var atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 5, 10);
-            PdbLoader.OffsetPoints(ref atomClustersL2, bounds.center);
+			var atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 5, 10);
+			PdbLoader.OffsetPoints(ref atomClustersL2, bounds.center);
+
+			//calculate nSphere 
+			int totalNb=atoms.Count;
+
+			float nbSphere = (float)totalNb*(0.5f/100.0f);
+			var atomClustersL3 = PdbLoader.ClusterAtomsKmeans(atoms, (int)nbSphere, 1.0f);
+			PdbLoader.OffsetPoints(ref atomClustersL3, bounds.center);
 
             if (recipeDictionary[j]["source"]["transform"].Count != 1)
             {
@@ -203,10 +212,12 @@ public static class CellPackLoader
                 PdbLoader.OffsetPoints(ref atomSpheres, offset * -1.0f);
                 PdbLoader.OffsetPoints(ref atomClustersL1, offset * -1.0f);
                 PdbLoader.OffsetPoints(ref atomClustersL2, offset * -1.0f);
+				PdbLoader.OffsetPoints(ref atomClustersL3, offset * -1.0f);
             }
 
-            atomClusters.Add(atomClustersL1);
-            atomClusters.Add(atomClustersL2);
+			atomClusters.Add(atomClustersL1);
+			atomClusters.Add(atomClustersL2);
+            atomClusters.Add(atomClustersL3);
 
 			// Add ingredient
             SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres, atomClusters);
@@ -228,7 +239,7 @@ public static class CellPackLoader
 				// Add instance
 				SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
 			}
-			
+			SceneManager.Instance.totalNbAtoms+=(totalNb*recipeDictionary[j]["results"].Count);
 			Debug.Log("Added: " + pdbName + " num instances: " + recipeDictionary[j]["results"].Count);
 			Debug.Log("*****");
 		}
@@ -343,10 +354,11 @@ public static class CellPackLoader
 
     public static void LoadScene()
     {
+		SceneManager.Instance.totalNbAtoms = 0;
         LoadRecipe();
         //LoadMembrane();
         //LoadRna();
-
+		Debug.Log ("Total nb Atoms " + SceneManager.Instance.totalNbAtoms);
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitSize();
 
@@ -358,7 +370,7 @@ public static class CellPackLoader
             {
                 for (int k = -n; k <= n; k++)
                 {
-                    SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
+                    //SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
                 }
             }
         }

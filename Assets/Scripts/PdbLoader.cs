@@ -406,5 +406,57 @@ public static class PdbLoader
 
         return clusters;
 	}
+
+    //http://www.rcsb.org/pdb/101/static101.do?p=education_discussion/Looking-at-Structures/bioassembly_tutorial.html
+    public static List<Matrix4x4> ReadBiomtData(string path)
+    {
+        if (!File.Exists(path)) throw new Exception("File not found at: " + path);
+        
+        var matrices = new List<Matrix4x4>();
+        var matrix = new Matrix4x4();
+
+        foreach (var line in File.ReadAllLines(path))
+        {
+            if (line.StartsWith("REMARK 350"))
+            {
+                if (line.Contains("BIOMT1"))
+                {
+                    matrix = Matrix4x4.identity;
+                    var split = line.Substring(24).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    matrix[0, 0] = float.Parse(split[0]);
+                    matrix[0, 1] = float.Parse(split[1]);
+                    matrix[0, 2] = float.Parse(split[2]);
+                    matrix[0, 3] = float.Parse(split[3]);
+                }
+
+                if (line.Contains("BIOMT2"))
+                {
+                    var split = line.Substring(24).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    matrix[1, 0] = float.Parse(split[0]);
+                    matrix[1, 1] = float.Parse(split[1]);
+                    matrix[1, 2] = float.Parse(split[2]);
+                    matrix[1, 3] = float.Parse(split[3]);
+                }
+
+                if (line.Contains("BIOMT3"))
+                {
+                    var split = line.Substring(24).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    matrix[2, 0] = float.Parse(split[0]);
+                    matrix[2, 1] = float.Parse(split[1]);
+                    matrix[2, 2] = float.Parse(split[2]);
+                    matrix[2, 3] = float.Parse(split[3]);
+
+                    matrices.Add(matrix);
+                }
+            }
+        }
+
+        Debug.Log("Load biomt: " + Path.GetFileName(path) + " instance count: " + matrices.Count);
+
+        return matrices;
+    }
 }
 

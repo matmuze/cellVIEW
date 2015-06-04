@@ -19,8 +19,7 @@ uniform float4x4 _LodLevelsInfos;
 //--------------------------------------------------------------------------------------
 
 struct LodInfo
-{
-			
+{			
 	float radiusMin : FLOAT10;	
 	float radiusMax : FLOAT11;	 		
 	float radiusLerp : FLOAT12; 
@@ -55,7 +54,7 @@ struct ds2gs
 
 struct gs2fs
 {
-	uint id : UINT0;	
+	nointerpolation int id : INT0;	
 			
 	nointerpolation float radius : FLOAT0;	
 	nointerpolation float lambertFalloff : FLOAT1;

@@ -87,94 +87,144 @@ public static class CellPackLoader
     {
 		for (int j = 0; j < recipeDictionary.Count; j++)
 		{
-			//if (j == 2 ) break;
+            var biomt = (bool)recipeDictionary[j]["source"]["biomt"].AsBool;
+            var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
-			var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
-			var biomt = (bool)recipeDictionary[j]["source"]["biomt"].AsBool;
-            
+
+            if (pdbName == "") continue;  
             if (pdbName == "null") continue;  
 			if (pdbName == "None") continue; 
-			if (pdbName == "") continue;  
 			if (pdbName.StartsWith("EMDB")) continue;			
 			if (pdbName.Contains("1PI7_1vpu_biounit")) continue;
-			var iname = recipeDictionary[j].Value;
-            
+			
             // Debug biomt
-            //if (!pdbName.Contains("MA_matrix_G1")) continue;
-            
-            //var atoms = new List<Vector4>();
-            var atoms = new List<PdbLoader.Atom>();
-            var biomtInstances = new List<Vector4>();
-            var atomClusters = new List<List<Vector4>>();
-            
+            if (!biomt) continue;
+            if (!pdbName.Contains("igg_dim")) continue;
+
             var pdbPath = ProteinDiretory + pdbName + ".pdb";
             if (!File.Exists(pdbPath)) PdbLoader.DownloadPdbFile(pdbPath, ProteinDiretory); // If the pdb file does not exist try to download it
-            
-            if (biomt)
-            {
-                Debug.Log("Biomt instance: " + pdbName);
-                //atoms = PdbLoader.ReadBioAssemblyFile(pdbPath);
-            }
-            else
-            {
-                atoms = PdbLoader.ReadAtomData(pdbPath);
-            }
 
+            // Load all data from text files
+            var atoms = PdbLoader.ReadAtomData(pdbPath);
+            var atomClusters = new List<List<Vector4>>();
+            var biomtInstances = (biomt) ? PdbLoader.ReadBiomtData(pdbPath) : new List<Matrix4x4>();
+            
             // Get atom spheres
-		    var atomSpheres = PdbLoader.GetAtomSpheres(atoms);
+            var atomSpheres = PdbLoader.GetAtomSpheres(atoms);
             var bounds = PdbLoader.GetBounds(atomSpheres);
             PdbLoader.OffsetPoints(ref atomSpheres, bounds.center);
 
-            // Get cluster spheres
-            var atomClustersL1 = PdbLoader.ClusterAtomsByResidue(atoms, 8, 4);
-            PdbLoader.OffsetPoints(ref atomClustersL1, bounds.center);
-
-            var atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 4, 8);
-            PdbLoader.OffsetPoints(ref atomClustersL2, bounds.center);
-            
-			//calculate nSphere
-			float numClusterSeeds = (float)atoms.Count*(0.5f/100.0f);
-            
-            // Do not use KMeans when the protein is too small
-            var atomClustersL3 = (atoms.Count < 1000) ? new List<Vector4>(atomClustersL2) : PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f);
-			PdbLoader.OffsetPoints(ref atomClustersL3, bounds.center);
-
-            if (recipeDictionary[j]["source"]["transform"].Count != 1)
+            // Code de debug, permet de comparer avec un resultat valide
+            // La je load tous les atoms d'un coup et je les transform individuelement
+            var dbg = new List<Vector4>();
+            for (int i = 0; i < biomtInstances.Count; i++)
             {
-                //translate
-                var tr = recipeDictionary[j]["source"]["transform"]["translate"];//rotate also
-                var offset = new Vector3(-tr[0].AsFloat, tr[1].AsFloat, tr[2].AsFloat);
-                Debug.Log("translate " + offset.ToString());
-                PdbLoader.OffsetPoints(ref atomSpheres, offset * -1.0f);
-                PdbLoader.OffsetPoints(ref atomClustersL1, offset * -1.0f);
-                PdbLoader.OffsetPoints(ref atomClustersL2, offset * -1.0f);
-				PdbLoader.OffsetPoints(ref atomClustersL3, offset * -1.0f);
+                foreach (var s in atomSpheres)
+                {
+                    dbg.Add(biomtInstances[i].MultiplyPoint(s));
+                }
+            }
+            SceneManager.Instance.AddIngredient("dbg", bounds, dbg, atomClusters);
+            SceneManager.Instance.AddIngredientInstance("dbg", Vector3.zero, Quaternion.identity);
+            
+            // Ici j'essaie de deduire la bonne position de chaque instance
+            // la position est bonne pas la rotation...
+
+            SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres, atomClusters);
+            for (int i = 0; i < biomtInstances.Count; i++)
+            {
+                // si je transforme deux points je me suis dis qu'il devrai etre possible d'obtenir la rotation en comparant l'angle avant et apres...
+                var position = biomtInstances[i].MultiplyPoint(bounds.center);
+                var refPos = biomtInstances[i].MultiplyPoint(bounds.center + Vector3.up);
+                
+                var refDir = position - refPos;
+                
+                Debug.Log(refDir);
+
+                var rot = Quaternion.FromToRotation(Vector3.up, refDir);
+
+                //var eulerBiomt = Helper.euler_from_matrix(biomtInstances[i]);
+                //var rotationBiomt = Helper.MayaRotationToUnity(eulerBiomt);
+
+                SceneManager.Instance.AddIngredientInstance(pdbName, position, rot);
             }
 
-            atomClusters.Add(atomClustersL1);
-            atomClusters.Add(atomClustersL2);
-            atomClusters.Add(atomClustersL3);
+            //var atomClustersL1 = PdbLoader.ClusterAtomsByResidue(atoms, 8, 4);
+            //PdbLoader.OffsetPoints(ref atomClustersL1, bounds.center);
 
-			// Add ingredient
-            SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres, atomClusters);
-			
-			for (int k = 0; k < recipeDictionary[j]["results"].Count; k++)
-			{
-				var p = recipeDictionary[j]["results"][k][0];
-				var r = recipeDictionary[j]["results"][k][1];
-				
-				var position = new Vector3(-p[0].AsFloat, p[1].AsFloat, p[2].AsFloat);
-				var rot = new Quaternion(r[0].AsFloat, r[1].AsFloat, r[2].AsFloat, r[3].AsFloat);
-				var mat = Helper.quaternion_matrix(rot).transpose;
-				var euler = Helper.euler_from_matrix(mat);
-				var rotation = Helper.MayaRotationToUnity(euler);
-				
-				// Find centered position
-				if (!center) position += Helper.QTransform(Helper.QuanternionToVector4(rotation), bounds.center);
+            //var atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 4, 8);
+            //PdbLoader.OffsetPoints(ref atomClustersL2, bounds.center);
 
-				// Add instance
-				SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
-			}
+            ////calculate nSphere
+            //float numClusterSeeds = (float)atoms.Count * (0.5f / 100.0f);
+
+            //// Do not use KMeans when the protein is too small
+            //var atomClustersL3 = (atoms.Count < 1000) ? new List<Vector4>(atomClustersL2) : PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f);
+            //PdbLoader.OffsetPoints(ref atomClustersL3, bounds.center);
+
+            //if (recipeDictionary[j]["source"]["transform"].Count != 1)
+            //{
+            //    //translate
+            //    var tr = recipeDictionary[j]["source"]["transform"]["translate"];//rotate also
+            //    var offset = new Vector3(-tr[0].AsFloat, tr[1].AsFloat, tr[2].AsFloat);
+            //    Debug.Log("translate " + offset.ToString());
+            //    PdbLoader.OffsetPoints(ref atomSpheres, offset * -1.0f);
+            //    PdbLoader.OffsetPoints(ref atomClustersL1, offset * -1.0f);
+            //    PdbLoader.OffsetPoints(ref atomClustersL2, offset * -1.0f);
+            //    PdbLoader.OffsetPoints(ref atomClustersL3, offset * -1.0f);
+            //}
+
+            //atomClusters.Add(atomClustersL1);
+            //atomClusters.Add(atomClustersL2);
+            //atomClusters.Add(atomClustersL3);
+
+            //SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres, atomClusters);
+
+            //for (int i = 0; i < biomtInstances.Count; i++)
+            //{
+            //    var columnPos = biomtInstances[i].GetColumn(3);
+            //    var posBiomt = new Vector3(columnPos.x, columnPos.y, columnPos.z);
+               
+            //    var eulerBiomt = Helper.euler_from_matrix(biomtInstances[i]);
+            //    var rotationBiomt = Helper.MayaRotationToUnity(eulerBiomt);
+            //    var instancePosition = Helper.QuaternionTransform(rotationBiomt, bounds.center + posBiomt) + posBiomt;
+
+            //    SceneManager.Instance.AddIngredientInstance(pdbName, instancePosition, rotationBiomt);
+            //}
+
+            //for (int k = 0; k < recipeDictionary[j]["results"].Count; k++)
+            //{
+            //    var p = recipeDictionary[j]["results"][k][0];
+            //    var r = recipeDictionary[j]["results"][k][1];
+
+            //    var position = new Vector3(-p[0].AsFloat, p[1].AsFloat, p[2].AsFloat);
+            //    var rot = new Quaternion(r[0].AsFloat, r[1].AsFloat, r[2].AsFloat, r[3].AsFloat);
+
+            //    var mat = Helper.quaternion_matrix(rot).transpose;
+            //    var euler = Helper.euler_from_matrix(mat);
+            //    var rotation = Helper.MayaRotationToUnity(euler);
+
+            //    // Find centered position
+            //    if (!center) position += Helper.QuaternionTransform(rotation, bounds.center);
+
+            //    if (biomt)
+            //    {
+            //        for (int i = 0; i < biomtInstances.Count; i++)
+            //        {
+            //            var column = mat.GetColumn(3);
+            //            var posBiomt = new Vector3(column.x, column.y, column.z) ;
+            //            var eulerBiomt = Helper.euler_from_matrix(biomtInstances[i]);
+            //            var rotationBiomt = Helper.MayaRotationToUnity(eulerBiomt);
+            //            posBiomt = Helper.QuaternionTransform(rotationBiomt, bounds.center + posBiomt) + position;
+
+            //            SceneManager.Instance.AddIngredientInstance(pdbName, posBiomt, rotationBiomt);
+            //        }
+            //    }
+            //    else
+            //    {
+            //        SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
+            //    }
+            //}
 
 			SceneManager.Instance.UnitAtomCount += atoms.Count * recipeDictionary[j]["results"].Count;
 			
@@ -256,18 +306,18 @@ public static class CellPackLoader
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        int n = 1;
+        //int n = 1;
 
-        for (int i = -n; i <= n; i++)
-        {
-            for (int j = -n; j <= n; j++)
-            {
-                for (int k = -n; k <= n; k++)
-                {
-                    SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
-                }
-            }
-        }
+        //for (int i = -n; i <= n; i++)
+        //{
+        //    for (int j = -n; j <= n; j++)
+        //    {
+        //        for (int k = -n; k <= n; k++)
+        //        {
+        //            SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
+        //        }
+        //    }
+        //}
 
         Debug.Log("Unit atom count " + SceneManager.Instance.UnitAtomCount);
         Debug.Log("Global atom count " + SceneManager.Instance.GlobalAtomCount);

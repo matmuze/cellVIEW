@@ -382,7 +382,7 @@ public class SceneRenderer : MonoBehaviour
         /*** Start rendering routine ***/
 
         // Declare temp buffers
-        var idBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
+        var idBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.RInt);
         var colorBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32);
         var depthBuffer = RenderTexture.GetTemporary(src.width, src.height, 24, RenderTextureFormat.Depth);
         var depthNormalsBuffer = RenderTexture.GetTemporary(src.width, src.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Default, 1);

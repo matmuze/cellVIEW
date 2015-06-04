@@ -15,13 +15,13 @@ Shader "Custom/RenderProteins"
 	uniform StructuredBuffer<float4> _IngredientColors;	
 	uniform StructuredBuffer<float4> _ProteinAtomPositions;	
 	uniform StructuredBuffer<float4> _ProteinClusterPositions;	
-	uniform StructuredBuffer<float4> _ProteinSphereBatchInfos;	
+	uniform StructuredBuffer<int4> _ProteinSphereBatchInfos;	
 
 	uniform StructuredBuffer<float4> _ProteinUnitInstancePosition;	
 
 	void vs_protein(uint id : SV_VertexID, out vs2ds output)
 	{		
-		float4 sphereBatchInfo = _ProteinSphereBatchInfos[id];	
+		int4 sphereBatchInfo = _ProteinSphereBatchInfos[id];	
 		output.id = sphereBatchInfo.x;
 
 		float4 infos = _ProteinInstanceInfo[output.id];
@@ -125,7 +125,7 @@ Shader "Custom/RenderProteins"
 
 	//--------------------------------------------------------------------------------------
 	
-	void fs_protein(gs2fs input, out float4 color : COLOR0, out float4 id : COLOR1, out float depth : sv_depthgreaterequal) 
+	void fs_protein(gs2fs input, out float4 color : COLOR0, out int id : COLOR1, out float depth : sv_depthgreaterequal) 
 	{					
 		float lensqr = dot(input.uv, input.uv);   
 		if(lensqr > 1) discard;
@@ -140,12 +140,9 @@ Shader "Custom/RenderProteins"
 	
 		//max(((lensqr > 0.8) ? lensqr * 1-input.lambertFalloff : 1), 0.5);
 		color = float4(input.color, 1);		
-								
-		// Find id color
-		uint t1 = input.id / 256;
-		uint t2 = t1 / 256;
-		float3 colorId = float3(t2 % 256, t1 % 256, input.id % 256) * 1/255;	
-		id = float4(colorId, 1);		
+
+		// Set id to idbuffer
+		id = input.id;
 
 		// Find depth
 		float eyeDepth = LinearEyeDepth(input.pos.z) + input.radius * (1-normal.z);

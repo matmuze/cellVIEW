@@ -22,7 +22,7 @@ uniform	StructuredBuffer<float4> _ProteinInstanceInfo;
 uniform	StructuredBuffer<float4> _ProteinInstancePositions;	
 uniform StructuredBuffer<float4> _ProteinInstanceCullFlags;	
 
-uniform AppendStructuredBuffer<float4> _ProteinSphereBatchInfos;
+uniform AppendStructuredBuffer<int4> _ProteinSphereBatchInfos;
 
 [numthreads(32,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
@@ -61,7 +61,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 	for(int j = 0; j < numBatches; j++)
 	{
 		batchCount = min(batchIndex + sphereCountPerBatch, sphereCount) - batchIndex;			
-		_ProteinSphereBatchInfos.Append(float4(id.x, lodLevel, batchCount, sphereIndex + batchIndex));
+		_ProteinSphereBatchInfos.Append(int4(id.x, lodLevel, batchCount, sphereIndex + batchIndex));
 		batchIndex += batchCount;
 	}		
 }

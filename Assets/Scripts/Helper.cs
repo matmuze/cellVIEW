@@ -309,6 +309,11 @@ public static class Helper
         return v + 2.0f * Vector3.Cross(Vector3.Cross(v, q) + q.w*v, q);
     }
 
+    public static Vector3 QuaternionTransform(Quaternion q, Vector3 v)
+    {
+        return v + 2.0f * Vector3.Cross(Vector3.Cross(v, new Vector3(q.x, q.y, q.z)) + q.w * v, new Vector3(q.x, q.y, q.z));
+    }
+
     public static Quaternion RotationMatrixToQuaternion(Matrix4x4 m)
     {
         return Quaternion.LookRotation(m.GetColumn(2), m.GetColumn(1));

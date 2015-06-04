@@ -60,9 +60,7 @@ public class SceneManager : MonoBehaviour
     // Dna data
     public List<Vector4> DnaAtoms = new List<Vector4>();
     public List<Vector4> DnaControlPoints = new List<Vector4>();
-
-	public int totalNbAtoms=0;
-
+    
     public int NumProteinInstances
     {
         get { return InstancePositions.Count; }
@@ -118,16 +116,18 @@ public class SceneManager : MonoBehaviour
         _instance.UploadAllData();
     }
 
-    public int UnitSize = 0;
+    public int UnitAtomCount = 0;
+    public int UnitInstanceCount = 0;
+    public Int64 GlobalAtomCount = 0;
 
-    public void SetUnitSize()
+    public void SetUnitInstanceCount()
     {
-        UnitSize = InstancePositions.Count;
+        UnitInstanceCount = InstancePositions.Count;
     }
 
     public void AddUnitInstance(Vector3 offset)
     {
-       for (int i = 0; i < UnitSize; i++)
+       for (int i = 0; i < UnitInstanceCount; i++)
        {
            var info = InstanceInfos[i];
            //info.w = UnitInstancePositions.Count;
@@ -141,6 +141,8 @@ public class SceneManager : MonoBehaviour
            InstancePositions.Add(position);
            InstanceRotations.Add(rotation);
        }
+
+       GlobalAtomCount += UnitAtomCount;
     }
     
     public void AddIngredient(string ingredientName, Bounds bounds, List<Vector4> atoms, List<List<Vector4>> clusters = null) 
@@ -375,6 +377,9 @@ public class SceneManager : MonoBehaviour
         Debug.Log("Clear scene");
 
         NumLodLevels = 0;
+        UnitAtomCount = 0;
+        GlobalAtomCount = 0;
+        UnitInstanceCount = 0;
 
         // Clear scene data
         InstanceInfos.Clear();

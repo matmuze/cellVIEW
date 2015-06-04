@@ -15,7 +15,7 @@ bool SpherePlaneTest( float4 plane, float3 center, float offset)
 
 #pragma kernel CrossSection
 
-[numthreads(8,1,1)]
+[numthreads(32,1,1)]
 void CrossSection (uint3 id : SV_DispatchThreadID)
 {	
 	if(id.x >= (uint)_NumInstances) return;			

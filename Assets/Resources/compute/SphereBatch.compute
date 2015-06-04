@@ -24,7 +24,7 @@ uniform StructuredBuffer<float4> _ProteinInstanceCullFlags;
 
 uniform AppendStructuredBuffer<float4> _ProteinSphereBatchInfos;
 
-[numthreads(8,1,1)]
+[numthreads(32,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
 	if(id.x >= (uint)_NumInstances) return;

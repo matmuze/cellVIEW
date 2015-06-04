@@ -228,7 +228,7 @@ public class SceneRenderer : MonoBehaviour
         CrossSectionCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
         CrossSectionCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
         CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
-        CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+        CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
 
         // Compute lipid cross section 
         //CrossSectionCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
@@ -249,7 +249,7 @@ public class SceneRenderer : MonoBehaviour
         FrustrumCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
         FrustrumCullingCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
         FrustrumCullingCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
-        FrustrumCullingCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+        FrustrumCullingCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
 
         // Compute lipids frustrum culling
         //FrustrumCullingCS.SetInt("_NumLipidInstances", SceneManager.Instance.NumLipidInstances);
@@ -317,7 +317,7 @@ public class SceneRenderer : MonoBehaviour
         OcclusionCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
         OcclusionCullingCS.SetBuffer(2, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
         OcclusionCullingCS.SetBuffer(2, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
-        OcclusionCullingCS.Dispatch(2, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+        OcclusionCullingCS.Dispatch(2, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
 
         // Do lipid occlusion culling
         //OcclusionCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
@@ -345,7 +345,7 @@ public class SceneRenderer : MonoBehaviour
         BatchInstancesCS.SetBuffer(0, "_IngredientClusterCount", ComputeBufferManager.Instance.ProteinClusterCount);
         BatchInstancesCS.SetBuffer(0, "_IngredientClusterStart", ComputeBufferManager.Instance.ProteinClusterStart);
         BatchInstancesCS.SetBuffer(0, "_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
-        BatchInstancesCS.Dispatch(0, (int)Mathf.Ceil((float)SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
+        BatchInstancesCS.Dispatch(0, (int)Mathf.Ceil((float)SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
 
         // Count sphere batches
         ComputeBuffer.CopyCount(ComputeBufferManager.Instance.ProteinSphereBatchInfos, _argBuffer, 0);
@@ -365,14 +365,11 @@ public class SceneRenderer : MonoBehaviour
         {
             Graphics.Blit(src, dst); return;
         }
-        
+
         ComputeCrossSection();
-
         ComputeFrustrumCulling();
-
-        // Do pre-render occlusion test
-        ComputeOcclusionCulling(false);
-
+        ComputeOcclusionCulling(false); // Do pre-render occlusion test
+        
         ComputeBatching();
 
         // This resets the append buffer buffer to 0
@@ -404,7 +401,7 @@ public class SceneRenderer : MonoBehaviour
 
         // Set render target
         Graphics.SetRenderTarget(new[] { colorBuffer.colorBuffer, idBuffer.colorBuffer }, depthBuffer.depthBuffer);
-     
+        
         // Draw lipids
         _renderLipidsMaterial.SetPass(0);
         //Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumLipidInstances);
@@ -418,9 +415,6 @@ public class SceneRenderer : MonoBehaviour
         //Graphics.DrawProcedural(MeshTopology.Points, Mathf.Max(SceneManager.Instance.NumDnaSegments - 2, 0)); // Do not draw first and last segments
 
         ComputeHiZMap(depthBuffer);
-
-        ClearOcclusionFlagsCS.SetBuffer(0, "_Buffer", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
-        ClearOcclusionFlagsCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 8.0f), 1, 1);
 
         // Do post-render occlusion test
         ComputeOcclusionCulling(true);

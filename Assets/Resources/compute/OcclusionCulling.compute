@@ -73,7 +73,7 @@ uniform	RWStructuredBuffer<float4> _InstanceCullFlags;
 
 uniform float4x4 _PreviousFrameInverseViewProjMatrix;
 
-[numthreads(8,1,1)]
+[numthreads(32,1,1)]
 void OcclusionCulling (uint3 id : SV_DispatchThreadID)
 {	
 	//if(id.x >= (uint)_NumInstances) return;
@@ -89,8 +89,7 @@ void OcclusionCulling (uint3 id : SV_DispatchThreadID)
 
 	float4 data = _InstancePositions[id.x];
 	float radius = data.w * _Scale;
-	float3 center = data.xyz * _Scale;
-		
+	float3 center = data.xyz * _Scale;		
 
 	// Compute the depth of the bounding sphere
 	float3 sphereCenterViewSpace = mul( _CameraViewMatrix, float4( center, 1 ) ).xyz;	
@@ -120,10 +119,10 @@ void OcclusionCulling (uint3 id : SV_DispatchThreadID)
 	sampledDepth = max(sampledDepth, _HiZMap[uint3(sphereCornerScreenSpace_0.x, sphereCornerScreenSpace_0.y + sampleOffset, hizMapLevel )]);
 	sampledDepth = max(sampledDepth, _HiZMap[uint3(sphereCornerScreenSpace_0.x + sampleOffset, sphereCornerScreenSpace_0.y + sampleOffset, hizMapLevel )]);
 
-	float2 uv = sphereCenterScreenSpace.xy / sphereCenterScreenSpace.w;
-	float4 sampledDepthWorldSpace = mul(_PreviousFrameInverseViewProjMatrix, float4(uv.xy, sampledDepth, 1.0));
-	sampledDepthWorldSpace /= sampledDepthWorldSpace.w;
-	float3 sampledDepthViewSpace = mul( _CameraViewMatrix, float4( sampledDepthWorldSpace.xyz, 1 ) ).xyz;		
+	//float2 uv = sphereCenterScreenSpace.xy / sphereCenterScreenSpace.w;
+	//float4 sampledDepthWorldSpace = mul(_PreviousFrameInverseViewProjMatrix, float4(uv.xy, sampledDepth, 1.0));
+	//sampledDepthWorldSpace /= sampledDepthWorldSpace.w;
+	//float3 sampledDepthViewSpace = mul( _CameraViewMatrix, float4( sampledDepthWorldSpace.xyz, 1 ) ).xyz;		
 		
 	//_InstanceCullFlags[id.x].z = (sampledDepthViewSpace.z < closestSpherePointViewSpace.z) ? 0 : 1;
 	//_InstanceCullFlags[id.x].z = 0;		

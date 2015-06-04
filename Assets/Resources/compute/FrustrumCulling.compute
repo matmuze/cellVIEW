@@ -27,7 +27,7 @@ bool SphereFrustrumTest( float3 center, float radius)
 
 #pragma kernel FrustrumCulling
 
-[numthreads(8,1,1)]
+[numthreads(32,1,1)]
 void FrustrumCulling (uint3 id : SV_DispatchThreadID)
 {	
 	if(id.x >= (uint)_NumInstances) return;

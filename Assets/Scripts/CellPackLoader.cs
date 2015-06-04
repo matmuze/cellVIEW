@@ -256,7 +256,7 @@ public static class CellPackLoader
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        int n = 2;
+        int n = 1;
 
         for (int i = -n; i <= n; i++)
         {

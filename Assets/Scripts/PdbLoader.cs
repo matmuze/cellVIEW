@@ -427,7 +427,7 @@ public static class PdbLoader
                     matrix[0, 0] = float.Parse(split[0]);
                     matrix[0, 1] = float.Parse(split[1]);
                     matrix[0, 2] = float.Parse(split[2]);
-                    matrix[0, 3] = float.Parse(split[3]);
+                    matrix[0, 3] = -float.Parse(split[3]);
                 }
 
                 if (line.Contains("BIOMT2"))

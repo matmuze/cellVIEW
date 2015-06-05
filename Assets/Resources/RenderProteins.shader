@@ -61,7 +61,7 @@ Shader "Custom/RenderProteins"
 		output.state = op[0].state;
 		output.color = op[0].color;
 		output.pos = op[0].pos + QuaternionTransform(op[0].rot, spherePosition.xyz) * _Scale;	
-		output.radius = (y >= input.tessFactor[0] || sphereIndex >= op[0].sphereCount) ? 0 : max(spherePosition.w * _Scale, 1 * op[0].radiusScale); // Discard unwanted spheres		
+		output.radius = (y >= input.tessFactor[0] || sphereIndex >= op[0].sphereCount) ? 0 : max(spherePosition.w * _Scale, 1 * op[0].radiusScale); // Discard unwanted spheres	
 	}
 
 	//--------------------------------------------------------------------------------------

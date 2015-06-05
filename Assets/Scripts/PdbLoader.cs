@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -16,9 +17,10 @@ public static class PdbLoader
     {
         public int residue;
         public int residueId;
-
+        
         public char symbol;
         public char chainId;
+        public string name;
         
         public Vector3 position;
     }
@@ -102,6 +104,16 @@ public static class PdbLoader
         return points;
     }
 
+    public static bool IsCarbonOnly(List<Atom> atoms)
+    {
+        foreach (var atom in atoms)
+        {
+            if (String.CompareOrdinal(atom.name, "CA") != 0) return false;
+        }
+
+        return true;
+    }
+
     //----------------------------------------------------------------------------------------------
     
     //http://deposit.rcsb.org/adit/docs/pdb_atom_format.html#ATOM
@@ -119,14 +131,22 @@ public static class PdbLoader
                 var y = float.Parse(line.Substring(38, 8));
                 var z = float.Parse(line.Substring(46, 8));
 
-                var symbol = line.Substring(13, 1)[0];
-                //var symbol = line.Substring(76, 1)[0];
+                var name = line.Substring(12, 4).Trim();
                 var chainId = line.Substring(23, 3)[0];
                 var residueId = int.Parse(line.Substring(23, 3));
 
+                // Remove numbers from the name
+                var t = Regex.Replace(name, @"[\d-]", string.Empty).Trim();
+                var symbolId = Array.IndexOf(AtomSymbols, t[0].ToString());
+                if (symbolId < 0)
+                {
+                    throw new Exception("Atom symbol unknown: " + name);
+                }
+
                 var atom = new Atom
                 {
-                    symbol = symbol,
+                    name = name,
+                    symbol = name[0],
                     chainId = chainId,
                     residueId = residueId,
                     position = new Vector3(-x, y, z)
@@ -177,112 +197,6 @@ public static class PdbLoader
         return atomSpheres;
     }
 
-    ////http://www.rcsb.org/pdb/101/static101.do?p=education_discussion/Looking-at-Structures/bioassembly_tutorial.html
-    public static List<Vector4> ReadBioAssemblyFile(string path)//, out List<Matrix4x4> matrices)
-    {
-        Debug.Log("GetPdbFilePath got " + path);
-        if (!File.Exists(path)) throw new Exception("File not found at: " + path);
-
-        var atoms_unit = new List<Vector4>();
-        var matrices = new List<Matrix4x4>();
-        var matrix = new Matrix4x4();
-
-        foreach (var line in File.ReadAllLines(path))
-        {
-            if (line.StartsWith("REMARK 350"))
-            {
-                if (line.Contains("BIOMT1"))
-                {
-                    matrix = Matrix4x4.identity;
-                    var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    matrix[0, 0] = float.Parse(split[0]);//RxX
-                    matrix[0, 1] = float.Parse(split[1]);//RxY
-                    matrix[0, 2] = float.Parse(split[2]);//RxZ
-                    matrix[0, 3] = float.Parse(split[3]);//TX
-                }
-
-                if (line.Contains("BIOMT2"))
-                {
-                    var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    matrix[1, 0] = float.Parse(split[0]);//RyX
-                    matrix[1, 1] = float.Parse(split[1]);//RyY
-                    matrix[1, 2] = float.Parse(split[2]);//RyZ
-                    matrix[1, 3] = float.Parse(split[3]);//TY
-                }
-
-                if (line.Contains("BIOMT3"))
-                {
-                    var split = line.Substring(30).Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    matrix[2, 0] = float.Parse(split[0]);//RzX
-                    matrix[2, 1] = float.Parse(split[1]);//RzY
-                    matrix[2, 2] = float.Parse(split[2]);//RzZ
-                    matrix[2, 3] = float.Parse(split[3]);//TZ
-                    //convert to left hand
-                    //					var m = matrix;//.transpose;
-                    //					m.SetRow(0,new Vector4(-m[0,0],m[0,1],m[0,2]));
-                    //					m.SetRow(1,new Vector4(-m[1,0],m[1,1],m[1,2]));
-                    //					m.SetRow(2,new Vector4(-m[2,0],m[2,1],m[2,2])*-1.0f);
-                    //					m.SetRow(3,new Vector4(-m[3,0],m[3,1],m[3,2]));
-
-                    matrices.Add(matrix);
-                }
-            }
-            if (line.StartsWith("ATOM") || line.StartsWith("HETATM"))
-            {
-                var x = float.Parse(line.Substring(30, 8));
-                var y = float.Parse(line.Substring(38, 8));
-                var z = float.Parse(line.Substring(46, 8));
-
-                //var atomSymbol = line.Substring(76, 2).Trim();
-                var atomSymbol = line.Substring(13, 1).Trim();
-                //var atomSymbol = line.Substring(13, 1).Trim();
-                var symbolId = Array.IndexOf(AtomSymbols, atomSymbol);
-                if (symbolId < 0)
-                {
-                    //Debug.Log("Atom symbol not found: " + atomSymbol);
-                    symbolId = 0;
-                }
-
-                var atom = new Vector4(x, y, z, symbolId);
-                atoms_unit.Add(atom);
-            }
-        }
-
-
-        var atoms = new List<Vector4>();
-        for (var i = 0; i < atoms_unit.Count; i++)
-        {
-            foreach (var mat in matrices)
-            {
-                //Debug.Log (matrix.ToString());
-                var euler = Helper.euler_from_matrix(mat);
-                //Debug.Log (euler.ToString());
-                var rotation = Helper.MayaRotationToUnity(new Vector3(euler.x, euler.y, euler.z));
-                //var pos = mat.GetRow(3);
-                var pos = mat.GetColumn(3);
-                var ipos = new Vector3(pos.x, pos.y, pos.z);
-                var m = Matrix4x4.TRS(ipos, rotation, new Vector3(1, 1, 1));
-                var ap = new Vector3(atoms_unit[i].x, atoms_unit[i].y, atoms_unit[i].z);
-                //var p = rotation*( ap + ipos);
-                //Vector3 p = m.MultiplyPoint3x4(ap);
-                Vector3 p = new Vector3(0, 0, 0);
-                //mat = mat.transpose;
-                p.x = mat[0, 3] + (ap.x * mat[0, 0] + ap.y * mat[0, 1] + ap.z * mat[0, 2]);
-                p.y = mat[1, 3] + (ap.x * mat[1, 0] + ap.y * mat[1, 1] + ap.z * mat[1, 2]);
-                p.z = mat[2, 3] + (ap.x * mat[2, 0] + ap.y * mat[2, 1] + ap.z * mat[2, 2]);
-                var atom = new Vector4(p.x, p.y, p.z, atoms_unit[i].w);
-                atoms.Add(atom);
-                //break;
-            }//break;
-        }
-
-        Debug.Log("Loaded " + Path.GetFileName(path) + " num atoms: " + atoms.Count + " using biomt " + matrices.Count + " " + atoms_unit.Count);
-        return atoms;
-    }
-
     //----------------------------------------------------------------------------------------------
 
     public static List<Vector4> ReadClusterSpheres(string path)
@@ -300,46 +214,16 @@ public static class PdbLoader
             var r = float.Parse(split[3]);
 
             //should use -Z pdb are right-handed
-            clusters.Add(new Vector4(-x, y, z, r));
+            clusters.Add(new Vector4(x, y, z, r));
         }
 
         Debug.Log("Loaded: " + Path.GetFileName(path) + " num clusters: " + clusters.Count);
         return clusters;
     }
 
-    // Cluster a set of spheres in a list -- naive approach based to spatial locatlity
-    private static List<Vector4> ClusterSpheres(List<Vector4> spheres, int numSpheresPerCluster, float maxRadius)
-    {
-        var numAtomPerCluster = Mathf.Min(spheres.Count, numSpheresPerCluster);
-        var numClusters = (int)Mathf.Floor(spheres.Count / (float)numAtomPerCluster);
-        var clusters = new List<Vector4>();
 
-        for (int i = 0; i < numClusters; i++)
-        {
-            var rangeIndex = i * numAtomPerCluster;
-            var rangeCount = numAtomPerCluster;
 
-            if (i == numClusters - 1)
-            {
-                rangeCount += spheres.Count - (rangeIndex + rangeCount);
-            }
-
-            var bounds = GetBounds(spheres.GetRange(rangeIndex, rangeCount));
-            var radius = Vector3.Magnitude(bounds.extents) * 0.5f;
-
-            //if (radius > 10)
-            //{
-            //    int a = 0;
-            //}
-
-            var clusterPos = new Vector4(bounds.center.x, bounds.center.y, bounds.center.z, Mathf.Min(radius, maxRadius));
-            clusters.Add(clusterPos);
-        }
-
-        return clusters;
-    }
-    
-    public static List<Vector4> ClusterAtomsByResidue(List<Atom> atoms, int numAtomsPerResidueCluster, float maxRadius, bool logInfo = true)
+    public static List<Vector4> ClusterAtomsByResidue(List<Atom> atoms, int numAtomsPerResidueCluster, float radius, bool logInfo = true)
     {
         var clusters = new List<Vector4>();
         var atomSpheres = new List<Vector4>();
@@ -355,7 +239,7 @@ public static class PdbLoader
 
             if (i == atoms.Count -1 || atoms[i].residueId != atoms[i + 1].residueId)
             {
-                clusters.AddRange(ClusterSpheres(atomSpheres, numAtomsPerResidueCluster, maxRadius));
+                clusters.AddRange(ClusterSpheres(atomSpheres, numAtomsPerResidueCluster, radius));
                 atomSpheres.Clear();
                 residueCount ++;
             }
@@ -366,7 +250,7 @@ public static class PdbLoader
         return clusters;
     }
 
-    public static List<Vector4> ClusterAtomsByChain(List<Atom> atoms, int numResiduesPerChainCluster, float maxRadius)
+    public static List<Vector4> ClusterAtomsByChain(List<Atom> atoms, int numResiduesPerChainCluster, float radius)
     {
         var clusters = new List<Vector4>();
         var atomSpheres = new List<Atom>();
@@ -383,16 +267,42 @@ public static class PdbLoader
             if (i == atoms.Count - 1 || atoms[i].chainId != atoms[i + 1].chainId)
             {
                 // Cluster the current chain by residue
-                var residues = ClusterAtomsByResidue(atomSpheres, 10, 5, false);
+                var residues = ClusterAtomsByResidue(atomSpheres, 10, radius, false);
                 
                 // Cluster the residues in the chain
-                clusters.AddRange(ClusterSpheres(residues, numResiduesPerChainCluster, maxRadius));
+                clusters.AddRange(ClusterSpheres(residues, numResiduesPerChainCluster, radius));
                 atomSpheres.Clear();
                 chainCount++;
             }
         }
 
         Debug.Log("Num chains: " + chainCount + " num clusters: " + clusters.Count);
+
+        return clusters;
+    }
+
+    // Cluster a set of spheres in a list -- naive approach based to spatial locatlity
+    private static List<Vector4> ClusterSpheres(List<Vector4> spheres, int numSpheresPerCluster, float radius)
+    {
+        var numAtomPerCluster = Mathf.Min(spheres.Count, numSpheresPerCluster);
+        var numClusters = (int)Mathf.Floor(spheres.Count / (float)numAtomPerCluster);
+        var clusters = new List<Vector4>();
+
+        for (int i = 0; i < numClusters; i++)
+        {
+            var rangeIndex = i * numAtomPerCluster;
+            var rangeCount = numAtomPerCluster;
+
+            if (i == numClusters - 1)
+            {
+                rangeCount += spheres.Count - (rangeIndex + rangeCount);
+            }
+
+            var bounds = GetBounds(spheres.GetRange(rangeIndex, rangeCount));
+
+            var clusterPos = new Vector4(bounds.center.x, bounds.center.y, bounds.center.z, radius);
+            clusters.Add(clusterPos);
+        }
 
         return clusters;
     }
@@ -427,7 +337,7 @@ public static class PdbLoader
                     matrix[0, 0] = float.Parse(split[0]);
                     matrix[0, 1] = float.Parse(split[1]);
                     matrix[0, 2] = float.Parse(split[2]);
-                    matrix[0, 3] = -float.Parse(split[3]);
+                    matrix[0, 3] = float.Parse(split[3]);
                 }
 
                 if (line.Contains("BIOMT2"))
@@ -457,6 +367,28 @@ public static class PdbLoader
         Debug.Log("Load biomt: " + Path.GetFileName(path) + " instance count: " + matrices.Count);
 
         return matrices;
+    }
+
+    public static List<Vector4> BuildBiomt(List<Vector4> atomSpheres, List<Matrix4x4> transforms)
+    {
+        // Code de debug, permet de comparer avec un resultat valide
+        // La je load tous les atoms d'un coup et je les transform individuelement
+        var biomtSpheres = new List<Vector4>();
+
+        foreach (var transform in transforms)
+        {
+            var posBiomt = new Vector3(transform.m03, transform.m13, transform.m23);
+            var rotBiomt = Helper.RotationMatrixToQuaternion(transform);
+
+            foreach (var sphere in atomSpheres)
+            {
+                //var atomPos = Helper.QuaternionTransform(rotBiomt, sphere) + posBiomt;
+                var atomPos = transform.MultiplyVector(sphere) + posBiomt;
+                biomtSpheres.Add(new Vector4(atomPos.x, atomPos.y, atomPos.z, sphere.w));
+            }
+        }
+
+        return biomtSpheres;
     }
 }
 

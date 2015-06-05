@@ -16,6 +16,7 @@ public static class Helper
     //[a1*b0    .
     // [ ...          .
     // [aM*b0            aM*bN ]]
+
     public static Matrix4x4 quaternion_outer(Quaternion q1, Quaternion q2)
     {
         Matrix4x4 m = Matrix4x4.identity;
@@ -25,6 +26,7 @@ public static class Helper
         }
         return m;
     }
+
     public static Matrix4x4 quaternion_matrix(Quaternion quat)
     {
         float _EPS = 8.8817841970012523e-16f;
@@ -45,6 +47,51 @@ public static class Helper
             //m.SetColumn(2,m.GetColumn(2)*-1.0f);
         }
         return m;
+    }
+
+    public static Matrix4x4 quatToMatrix(Quaternion q)
+    {
+        float sqw = q.w * q.w;
+        float sqx = q.x * q.x;
+        float sqy = q.y * q.y;
+        float sqz = q.z * q.z;
+
+        // invs (inverse square length) is only required if quaternion is not already normalised
+        float invs = 1 / (sqx + sqy + sqz + sqw);
+        Matrix4x4 m = Matrix4x4.identity;
+        m[0, 0] = (sqx - sqy - sqz + sqw) * invs; // since sqw + sqx + sqy + sqz =1/invs*invs
+        m[1, 1] = (-sqx + sqy - sqz + sqw) * invs;
+        m[2, 2] = (-sqx - sqy + sqz + sqw) * invs;
+
+        float tmp1 = q.x * q.y;
+        float tmp2 = q.z * q.w;
+        m[1, 0] = 2.0f * (tmp1 + tmp2) * invs;
+        m[0, 1] = 2.0f * (tmp1 - tmp2) * invs;
+
+        tmp1 = q.x * q.z;
+        tmp2 = q.y * q.w;
+        m[2, 0] = 2.0f * (tmp1 - tmp2) * invs;
+        m[0, 2] = 2.0f * (tmp1 + tmp2) * invs;
+        tmp1 = q.y * q.z;
+        tmp2 = q.x * q.w;
+        m[2, 1] = 2.0f * (tmp1 + tmp2) * invs;
+        m[1, 2] = 2.0f * (tmp1 - tmp2) * invs;
+
+        //convertion to actual matrix
+        Matrix4x4 m2 = Matrix4x4.identity;
+        m2[0, 0] = -m[0, 1];
+        m2[1, 0] = m[2, 1];
+        m2[2, 0] = m[1, 1];
+
+        m2[0, 1] = -m[0, 0];
+        m2[1, 1] = m[2, 0];
+        m2[2, 1] = m[1, 0];
+
+        m2[0, 2] = m[0, 2];
+        m2[1, 2] = -m[2, 2];
+        m2[2, 2] = -m[1, 2];
+
+        return m2;
     }
 
     public static Vector3 euler_from_matrix(Matrix4x4 M)
@@ -129,19 +176,6 @@ public static class Helper
         return euler;
     }
 
-    public static Vector3 CubicInterpolate(Vector3 y0, Vector3 y1, Vector3 y2, Vector3 y3, float mu)
-    {
-        float mu2 = mu * mu;
-        Vector3 a0, a1, a2, a3;
-
-        a0 = y3 - y2 - y0 + y1;
-        a1 = y0 - y1 - a0;
-        a2 = y2 - y0;
-        a3 = y1;
-
-        return (a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3);
-    }
-
     public static Quaternion MayaRotationToUnity(Vector3 rotation)
     {
         var flippedRotation = new Vector3(rotation.x, -rotation.y, -rotation.z); // flip Y and Z axis for right->left handed conversion
@@ -156,66 +190,7 @@ public static class Helper
         //qy90 = Quaternion.AngleAxis(90.0f,new_up);
         return qq;
     }
-
-    public static Matrix4x4 quatToMatrix(Quaternion q)
-    {
-        float sqw = q.w * q.w;
-        float sqx = q.x * q.x;
-        float sqy = q.y * q.y;
-        float sqz = q.z * q.z;
-
-        // invs (inverse square length) is only required if quaternion is not already normalised
-        float invs = 1 / (sqx + sqy + sqz + sqw);
-        Matrix4x4 m = Matrix4x4.identity;
-        m[0, 0] = (sqx - sqy - sqz + sqw) * invs; // since sqw + sqx + sqy + sqz =1/invs*invs
-        m[1, 1] = (-sqx + sqy - sqz + sqw) * invs;
-        m[2, 2] = (-sqx - sqy + sqz + sqw) * invs;
-
-        float tmp1 = q.x * q.y;
-        float tmp2 = q.z * q.w;
-        m[1, 0] = 2.0f * (tmp1 + tmp2) * invs;
-        m[0, 1] = 2.0f * (tmp1 - tmp2) * invs;
-
-        tmp1 = q.x * q.z;
-        tmp2 = q.y * q.w;
-        m[2, 0] = 2.0f * (tmp1 - tmp2) * invs;
-        m[0, 2] = 2.0f * (tmp1 + tmp2) * invs;
-        tmp1 = q.y * q.z;
-        tmp2 = q.x * q.w;
-        m[2, 1] = 2.0f * (tmp1 + tmp2) * invs;
-        m[1, 2] = 2.0f * (tmp1 - tmp2) * invs;
-
-        //convertion to actual matrix
-        Matrix4x4 m2 = Matrix4x4.identity;
-        m2[0, 0] = -m[0, 1];
-        m2[1, 0] = m[2, 1];
-        m2[2, 0] = m[1, 1];
-
-        m2[0, 1] = -m[0, 0];
-        m2[1, 1] = m[2, 0];
-        m2[2, 1] = m[1, 0];
-
-        m2[0, 2] = m[0, 2];
-        m2[1, 2] = -m[2, 2];
-        m2[2, 2] = -m[1, 2];
-
-        return m2;
-    }
-
-    public static Quaternion MatrixToRotation(Matrix4x4 m)
-    {
-        // Adapted from: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
-        Quaternion q = new Quaternion();
-        q.w = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] + m[1, 1] + m[2, 2])) / 2;
-        q.x = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] - m[1, 1] - m[2, 2])) / 2;
-        q.y = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] + m[1, 1] - m[2, 2])) / 2;
-        q.z = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] - m[1, 1] + m[2, 2])) / 2;
-        q.x *= Mathf.Sign(q.x * (m[2, 1] - m[1, 2]));
-        q.y *= Mathf.Sign(q.y * (m[0, 2] - m[2, 0]));
-        q.z *= Mathf.Sign(q.z * (m[1, 0] - m[0, 1]));
-        return q;
-    }
-
+    
     public static Matrix4x4 FloatArrayToMatrix4X4(float[] floatArray)
     {
         var matrix = new Matrix4x4();
@@ -261,8 +236,15 @@ public static class Helper
 
         return planesAsFloats;
     }
+    
+    public static Vector3 QuaternionTransform(Quaternion q, Vector3 v)
+    {
+        var tt = new Vector3(q.x, q.y, q.z);
+        var t = 2 * Vector3.Cross(tt, v);
+        return v + q.w * t + Vector3.Cross(tt, t);
+    }
 
-    public static Quaternion m2q(Matrix4x4 a)
+    public static Quaternion RotationMatrixToQuaternion(Matrix4x4 a)
     {
         Quaternion q = Quaternion.identity;
         float trace = a[0, 0] + a[1, 1] + a[2, 2]; // I removed + 1.0f; see discussion with Ethan
@@ -302,21 +284,6 @@ public static class Helper
             }
         }
         return q;
-    }
-
-    public static Vector3 QTransform(Vector4 q, Vector3 v)
-    {
-        return v + 2.0f * Vector3.Cross(Vector3.Cross(v, q) + q.w*v, q);
-    }
-
-    public static Vector3 QuaternionTransform(Quaternion q, Vector3 v)
-    {
-        return v + 2.0f * Vector3.Cross(Vector3.Cross(v, new Vector3(q.x, q.y, q.z)) + q.w * v, new Vector3(q.x, q.y, q.z));
-    }
-
-    public static Quaternion RotationMatrixToQuaternion(Matrix4x4 m)
-    {
-        return Quaternion.LookRotation(m.GetColumn(2), m.GetColumn(1));
     }
 
     public static Vector4 QuanternionToVector4(Quaternion q)
@@ -422,6 +389,19 @@ public static class Helper
         var path = _defaultPdbDirectory + iName + ".json";
         File.WriteAllText(path, www.text);
         return path;
+    }
+
+    public static Vector3 CubicInterpolate(Vector3 y0, Vector3 y1, Vector3 y2, Vector3 y3, float mu)
+    {
+        float mu2 = mu * mu;
+        Vector3 a0, a1, a2, a3;
+
+        a0 = y3 - y2 - y0 + y1;
+        a1 = y0 - y1 - a0;
+        a2 = y2 - y0;
+        a3 = y1;
+
+        return (a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3);
     }
 }
 

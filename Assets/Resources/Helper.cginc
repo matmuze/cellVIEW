@@ -104,7 +104,8 @@ float3 OffsetHSL(float3 color, float3 offset)
 
 float3 QuaternionTransform( float4 q, float3 v )
 { 
-	return v + 2.0 * cross(cross(v, q.xyz ) + q.w * v, q.xyz);
+	float3 t = 2 * cross(q.xyz, v);
+	return v + q.w * t + cross(q.xyz, t);
 }
 
 float4 QuaternionFromAxisAngle(float3 axis, float angle)

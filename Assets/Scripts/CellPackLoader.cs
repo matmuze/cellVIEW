@@ -276,18 +276,18 @@ public static class CellPackLoader
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        int n = 3;
+        //int n = 3;
 
-        for (int i = -n; i <= n; i++)
-        {
-            for (int j = -n; j <= n; j++)
-            {
-                for (int k = -n; k <= n; k++)
-                {
-                    SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
-                }
-            }
-        }
+        //for (int i = -n; i <= n; i++)
+        //{
+        //    for (int j = -n; j <= n; j++)
+        //    {
+        //        for (int k = -n; k <= n; k++)
+        //        {
+        //            SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
+        //        }
+        //    }
+        //}
 
         Debug.Log("Unit atom count " + SceneManager.Instance.UnitAtomCount);
         Debug.Log("Global atom count " + SceneManager.Instance.GlobalAtomCount);

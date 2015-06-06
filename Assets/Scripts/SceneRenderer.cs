@@ -1,9 +1,5 @@
 using System;
-using System.IO;
 using UnityEngine;
-using System.Collections.Generic;
-using System.Linq;
-using UnityEditor;
 
 [ExecuteInEditMode]
 public class SceneRenderer : MonoBehaviour

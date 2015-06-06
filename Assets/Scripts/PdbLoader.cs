@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-using UnityEditor;
 using UnityEngine;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public static class PdbLoader
 {
@@ -36,11 +38,15 @@ public static class PdbLoader
         new Color(255,200,50) / 255       // S        yellow      
     };
     
+    
+
     public static string DownloadPdbFile(string pdbName, string dstPath)
     {
+        #if UNITY_EDITOR
+
         Debug.Log("Downloading pdb file");
         var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
-
+        
         while (!www.isDone)
         {
             EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
@@ -53,6 +59,9 @@ public static class PdbLoader
         File.WriteAllText(path, www.text);
 
         return path;
+        #endif
+
+        return null;
     }
 
     public static Bounds GetBounds(List<Vector4> atoms)

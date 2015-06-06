@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using UnityEngine;
-using UnityEditor;
 
 using SimpleJSON;
 using System.Collections;
@@ -375,21 +374,21 @@ public static class Helper
         return P;
     }
 
-    public static string DownloadRecipeFile(string iName)
-    {
-        Debug.Log("Downloading pdb file");
-        var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/recipes/" + iName + ".json");
-        //var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
-        while (!www.isDone)
-        {
-            EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
-        }
-        EditorUtility.ClearProgressBar();
-        if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
-        var path = _defaultPdbDirectory + iName + ".json";
-        File.WriteAllText(path, www.text);
-        return path;
-    }
+    //public static string DownloadRecipeFile(string iName)
+    //{
+    //    Debug.Log("Downloading pdb file");
+    //    var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/recipes/" + iName + ".json");
+    //    //var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
+    //    while (!www.isDone)
+    //    {
+    //        EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
+    //    }
+    //    EditorUtility.ClearProgressBar();
+    //    if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
+    //    var path = _defaultPdbDirectory + iName + ".json";
+    //    File.WriteAllText(path, www.text);
+    //    return path;
+    //}
 
     public static Vector3 CubicInterpolate(Vector3 y0, Vector3 y1, Vector3 y2, Vector3 y3, float mu)
     {

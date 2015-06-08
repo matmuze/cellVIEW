@@ -269,6 +269,7 @@ public class SceneRenderer : MonoBehaviour
         if (SceneManager.Instance.NumProteinInstances > 0)
         {
             // Compute protein cross section 
+            CrossSectionCS.SetInt("_UseOffset", 0);
             CrossSectionCS.SetInt("_NumInstances", SceneManager.Instance.NumProteinInstances);
             CrossSectionCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.ProteinInstanceCullFlags);
             CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.ProteinInstancePositions);
@@ -278,6 +279,7 @@ public class SceneRenderer : MonoBehaviour
         if (SceneManager.Instance.NumLipidInstances > 0)
         {
             // Compute lipid cross section 
+            CrossSectionCS.SetInt("_UseOffset", 1);
             CrossSectionCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
             CrossSectionCS.SetBuffer(0, "_InstanceCullFlags", ComputeBufferManager.Instance.LipidInstanceCullFlags);
             CrossSectionCS.SetBuffer(0, "_InstancePositions", ComputeBufferManager.Instance.LipidInstancePositions);

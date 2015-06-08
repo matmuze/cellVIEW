@@ -1,0 +1,12 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+int2 _Coord;
+Texture2D<int> _IdTexture;
+RWStructuredBuffer<int> _OutputBuffer;
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    _OutputBuffer[0] = _IdTexture[(uint2)_Coord];
+}

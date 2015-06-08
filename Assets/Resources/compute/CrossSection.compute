@@ -4,6 +4,7 @@ uniform	int _NumProteinInstances;
 uniform int _EnableCrossSection;
 uniform float4 _CrossSectionPlane;
 
+uniform int _UseOffset;
 uniform	int _NumInstances;
 uniform	StructuredBuffer<float4> _InstancePositions;
 uniform	RWStructuredBuffer<int4> _InstanceCullFlags;
@@ -21,7 +22,7 @@ void CrossSection (uint3 id : SV_DispatchThreadID)
 	if(id.x >= (uint)_NumInstances) return;			
 	
 	float4 sphere = _InstancePositions[id.x]  * _Scale;
-	bool cullInstance = SpherePlaneTest(_CrossSectionPlane, sphere.xyz, sphere.w);
+	bool cullInstance = SpherePlaneTest(_CrossSectionPlane, sphere.xyz, (_UseOffset == 1) ? sphere.w : 0);
 	
 	_InstanceCullFlags[id.x].x = cullInstance || _EnableCrossSection == 0 ? 0 : 1;	
 	//_InstanceCullFlags[id.x].x = 0;	

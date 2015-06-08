@@ -38,11 +38,11 @@ Shader "Custom/RenderLipids"
 		
 		output.lodLevel = (cameraDistance < endRange ? 0 : 1);		
 		
-		float radiusMin = output.lodLevel == 0 ? 1 : 2.2;
+		float radiusMin = output.lodLevel == 0 ? 1 : 2;
 		float radiusMax = output.lodLevel == 0 ? 1.5 : 2;
 		
 		output.radiusScale = lerp(radiusMin, radiusMax, radiusLerp) * _Scale;
-		output.decimationFactor = (output.lodLevel == 0 ? 1 : 4);
+		output.decimationFactor = (output.lodLevel == 0 ? 1 : 3);
 		output.sphereStart = sphereBatchInfo.y;
 		output.sphereCount = (cullBatch) ? 0 : floor(sphereBatchInfo.x / output.decimationFactor);		
 
@@ -155,7 +155,7 @@ Shader "Custom/RenderLipids"
 		color = float4(input.color, 1);		
 								
 		// Set id to idbuffer
-		id = input.id;		
+		id = 666666666;		
 
 		// Find depth
 		float eyeDepth = LinearEyeDepth(input.pos.z) + input.radius * (1-normal.z);

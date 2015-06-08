@@ -56,18 +56,18 @@ public class NavigateCamera : MonoBehaviour
 
         //Debug.Log(deltaTime);
 
-        if (Mathf.Abs(deltaScroll) > 0.01f)
-        {
-            deltaScroll *= 0.90f;
-            Distance -= deltaScroll * deltaTime;
-            transform.position = TargetPosition - transform.forward * Distance;
+        //if (Mathf.Abs(deltaScroll) > 0.01f)
+        //{
+        //    deltaScroll *= 0.90f;
+        //    Distance -= deltaScroll * deltaTime;
+        //    transform.position = TargetPosition - transform.forward * Distance;
 
-            if (Distance < 0)
-            {
-                TargetPosition = transform.position + transform.forward*DefaultDistance;
-                Distance = Vector3.Distance(TargetPosition, transform.position);
-            }
-        }
+        //    if (Distance < 0)
+        //    {
+        //        TargetPosition = transform.position + transform.forward*DefaultDistance;
+        //        Distance = Vector3.Distance(TargetPosition, transform.position);
+        //    }
+        //}
 
         if (forward)
         {
@@ -139,7 +139,8 @@ public class NavigateCamera : MonoBehaviour
 
         if (Event.current.type == EventType.ScrollWheel)
         {
-            deltaScroll += Event.current.delta.y * ZoomingSpeed;
+            Distance += Event.current.delta.y * ZoomingSpeed;
+            transform.position = TargetPosition - transform.forward * Distance;
 
             if (Distance < 0)
             {

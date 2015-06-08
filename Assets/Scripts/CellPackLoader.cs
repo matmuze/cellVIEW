@@ -129,9 +129,7 @@ public static class CellPackLoader
                 atomClustersL1 = PdbLoader.ClusterAtomsByResidue(atoms, 8, 4);
                 atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 3, 8);
                 atomClustersL3 = (atoms.Count > 500) ? PdbLoader.ClusterAtomsByChain(atoms, 10, 10) : PdbLoader.ClusterAtomsByChain(atoms, 3, 8);
-                //atomClustersL3 = (atoms.Count < 1000)
-                //    ? new List<Vector4>(atomClustersL2)
-                //    : PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f);
+                //atomClustersL3 = (atoms.Count > 500) ? PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
 		    }
            
             // use biomt as one single instance until I find  better solution
@@ -264,24 +262,24 @@ public static class CellPackLoader
     public static void LoadScene()
     {
         LoadRecipe();
-        LoadMembrane();
+        //LoadMembrane();
         //LoadRna();
         
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        int n = 1;
+        //int n = 3;
 
-        for (int i = -n; i <= n; i++)
-        {
-            for (int j = -n; j <= n; j++)
-            {
-                for (int k = -n; k <= n; k++)
-                {
-                    SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
-                }
-            }
-        }
+        //for (int i = -n; i <= n; i++)
+        //{
+        //    for (int j = -n; j <= n; j++)
+        //    {
+        //        for (int k = -n; k <= n; k++)
+        //        {
+        //            SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
+        //        }
+        //    }
+        //}
         
         Debug.Log("Unit atom count " + SceneManager.Instance.UnitAtomCount);
         Debug.Log("Global atom count " + SceneManager.Instance.GlobalAtomCount);

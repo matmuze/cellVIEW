@@ -69,7 +69,7 @@ bool SphereFrustrumTest( float3 center, float radius)
 uniform	int _NumInstances;
 uniform int _ClearOcclusionFlags;
 uniform	StructuredBuffer<float4> _InstancePositions;
-uniform	RWStructuredBuffer<float4> _InstanceCullFlags;
+uniform	RWStructuredBuffer<int4> _InstanceCullFlags;
 
 uniform float4x4 _PreviousFrameInverseViewProjMatrix;
 
@@ -79,7 +79,7 @@ void OcclusionCulling (uint3 id : SV_DispatchThreadID)
 	//if(id.x >= (uint)_NumInstances) return;
 	if(id.x >= (uint)_NumInstances) return;
 
-	float4 cullFlags = _InstanceCullFlags[id.x];
+	int4 cullFlags = _InstanceCullFlags[id.x];
 
 	// if instance has been culled before return
 	if(cullFlags.x == 1 || cullFlags.y == 1) return;

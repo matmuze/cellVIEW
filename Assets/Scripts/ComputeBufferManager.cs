@@ -4,6 +4,40 @@ using UnityEngine;
 [ExecuteInEditMode]
 public class ComputeBufferManager : MonoBehaviour
 {
+    //public int NumProteinAtomMax = 1000000;        
+    //public int NumIngredientsMax = 1000;    
+    //public int NumProteinInstancesMax = 25000000;      
+    //public int NumProteinSphereBatchesMax = 25000000;  
+    //public int NumLipidAtomMax = 8000000;    
+    //public int NumLipidInstancesMax = 25000000;
+    //public int NumDnaAtomsMax = 1000;
+    //public int NumDnaControlPointsMax = 1000000;
+
+    [NonSerialized]
+    public int NumProteinAtomMax = 0;
+
+    [NonSerialized]
+    public int NumIngredientsMax = 0;
+
+    [NonSerialized]
+    public int NumProteinInstancesMax = 0;
+
+    [NonSerialized]
+    public int NumProteinSphereBatchesMax = 0;
+
+    [NonSerialized]
+    public int NumLipidAtomMax = 0;
+
+    [NonSerialized]
+    public int NumLipidInstancesMax = 0;
+
+    [NonSerialized]
+    public int NumDnaAtomsMax = 0;
+
+    [NonSerialized]
+    public int NumDnaControlPointsMax = 0;
+
+
     public ComputeBuffer UnitInstancePosition;
 
     public ComputeBuffer ProteinInstanceInfos;
@@ -87,42 +121,47 @@ public class ComputeBufferManager : MonoBehaviour
         ReleaseBuffers();
     }
 
-    void InitBuffers ()
+    public void InitBuffers ()
     {
+        if (NumProteinInstancesMax == 0 || NumLipidInstancesMax == 0 || NumLipidInstancesMax == 0) return;
+
+        // Before declaring new buffers make sure that all the previous buffers are cleared
+        ReleaseBuffers();
+        
         if (UnitInstancePosition == null) UnitInstancePosition = new ComputeBuffer(100, 16);
 
         // Instance data
-        if (ProteinInstanceInfos == null) ProteinInstanceInfos = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (ProteinInstanceCullFlags == null) ProteinInstanceCullFlags = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (ProteinInstancePositions == null) ProteinInstancePositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (ProteinInstanceRotations == null) ProteinInstanceRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (InstanceDisplayPositions == null) InstanceDisplayPositions = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (InstanceDisplayRotations == null) InstanceDisplayRotations = new ComputeBuffer(SceneManager.NumProteinInstancesMax, 16);
-        if (ProteinSphereBatchInfos == null) ProteinSphereBatchInfos = new ComputeBuffer(SceneManager.NumProteinSphereBatchesMax, 16, ComputeBufferType.Append);
+        if (ProteinInstanceInfos == null) ProteinInstanceInfos = new ComputeBuffer(NumProteinInstancesMax, 16);
+        if (ProteinInstanceCullFlags == null) ProteinInstanceCullFlags = new ComputeBuffer(NumProteinInstancesMax, 16);
+        if (ProteinInstancePositions == null) ProteinInstancePositions = new ComputeBuffer(NumProteinInstancesMax, 16);
+        if (ProteinInstanceRotations == null) ProteinInstanceRotations = new ComputeBuffer(NumProteinInstancesMax, 16);
+        if (InstanceDisplayPositions == null) InstanceDisplayPositions = new ComputeBuffer(NumProteinInstancesMax, 16);
+        if (InstanceDisplayRotations == null) InstanceDisplayRotations = new ComputeBuffer(NumProteinInstancesMax, 16);
+        if (ProteinSphereBatchInfos == null) ProteinSphereBatchInfos = new ComputeBuffer(NumProteinSphereBatchesMax, 16, ComputeBufferType.Append);
 
         // Ingredient data
-        if (ProteinColors == null) ProteinColors = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
-        if (ProteinVisibilityFlags == null) ProteinVisibilityFlags = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
+        if (ProteinColors == null) ProteinColors = new ComputeBuffer(NumIngredientsMax, 16);
+        if (ProteinVisibilityFlags == null) ProteinVisibilityFlags = new ComputeBuffer(NumIngredientsMax, 4);
 
         // Atom data
-        if (ProteinAtomPositions == null) ProteinAtomPositions = new ComputeBuffer(SceneManager.NumAtomMax, 16);
-        if (ProteinAtomCount == null) ProteinAtomCount = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
-        if (ProteinAtomStart == null) ProteinAtomStart = new ComputeBuffer(SceneManager.NumIngredientsMax, 4);
+        if (ProteinAtomPositions == null) ProteinAtomPositions = new ComputeBuffer(NumProteinAtomMax, 16);
+        if (ProteinAtomCount == null) ProteinAtomCount = new ComputeBuffer(NumIngredientsMax, 4);
+        if (ProteinAtomStart == null) ProteinAtomStart = new ComputeBuffer(NumIngredientsMax, 4);
         
         // Cluster data
-        if (ProteinClusterPositions == null) ProteinClusterPositions = new ComputeBuffer(SceneManager.NumAtomMax, 16);
-        if (ProteinClusterCount == null) ProteinClusterCount = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
-        if (ProteinClusterStart == null) ProteinClusterStart = new ComputeBuffer(SceneManager.NumIngredientsMax, 16);
+        if (ProteinClusterPositions == null) ProteinClusterPositions = new ComputeBuffer(NumProteinAtomMax, 16);
+        if (ProteinClusterCount == null) ProteinClusterCount = new ComputeBuffer(NumIngredientsMax, 16);
+        if (ProteinClusterStart == null) ProteinClusterStart = new ComputeBuffer(NumIngredientsMax, 16);
 
         // Lipid data
-        if (LipidAtomPositions == null) LipidAtomPositions = new ComputeBuffer(SceneManager.NumLipidAtomMax, 16);
-        if (LipidSphereBatchInfos == null) LipidSphereBatchInfos = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 16);
-        if (LipidInstanceCullFlags == null) LipidInstanceCullFlags = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 4);
-        if (LipidInstancePositions == null) LipidInstancePositions = new ComputeBuffer(SceneManager.NumLipidInstancesMax, 16);
+        if (LipidAtomPositions == null) LipidAtomPositions = new ComputeBuffer(NumLipidAtomMax, 16);
+        if (LipidSphereBatchInfos == null) LipidSphereBatchInfos = new ComputeBuffer(NumLipidInstancesMax, 16);
+        if (LipidInstanceCullFlags == null) LipidInstanceCullFlags = new ComputeBuffer(NumLipidInstancesMax, 16);
+        if (LipidInstancePositions == null) LipidInstancePositions = new ComputeBuffer(NumLipidInstancesMax, 16);
 
         // Dna data
-        if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(SceneManager.NumDnaAtomsMax, 16);
-        if (DnaControlPoints == null) DnaControlPoints = new ComputeBuffer(SceneManager.NumDnaControlPointsMax, 16);
+        if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(NumDnaAtomsMax, 16);
+        if (DnaControlPoints == null) DnaControlPoints = new ComputeBuffer(NumDnaControlPointsMax, 16);
 	}
 	
 	// Update is called once per frame

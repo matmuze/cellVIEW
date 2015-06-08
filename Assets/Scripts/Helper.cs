@@ -8,14 +8,6 @@ using System.Collections.Generic;
 
 public static class Helper
 {
-    //Sorry for the mess !!
-
-    private static string _defaultPdbDirectory = Application.dataPath + "/../Data/HIV/ingredients/";
-    //[[a0*b0  a0*b1 ... a0*bN ]
-    //[a1*b0    .
-    // [ ...          .
-    // [aM*b0            aM*bN ]]
-
     public static Matrix4x4 quaternion_outer(Quaternion q1, Quaternion q2)
     {
         Matrix4x4 m = Matrix4x4.identity;
@@ -190,59 +182,6 @@ public static class Helper
         return qq;
     }
     
-    public static Matrix4x4 FloatArrayToMatrix4X4(float[] floatArray)
-    {
-        var matrix = new Matrix4x4();
-
-        for (int i = 0; i < 4; i++)
-        {
-            for (int j = 0; j < 4; j++)
-            {
-                matrix[i,j] = floatArray[i*4 +j];
-            }
-        }
-
-        return matrix;
-    }
-
-    public static float[] Matrix4X4ToFloatArray(Matrix4x4 matrix)
-    {
-        var floatArray = new float[16];
-
-        for (int i = 0; i < 4; i++)
-        {
-            for (int j = 0; j < 4; j++)
-            {
-               floatArray[i * 4 + j] =  matrix[j, i];
-            }
-        }
-
-        return floatArray;
-    }
-
-
-    public static float[] FrustrumPlanesAsFloats(Camera _camera)
-    {
-        var planes = GeometryUtility.CalculateFrustumPlanes(_camera);
-        var planesAsFloats = new float[6 * 4];
-        for (int i = 0; i < planes.Length; i++)
-        {
-            planesAsFloats[i * 4] = planes[i].normal.x;
-            planesAsFloats[i * 4 + 1] = planes[i].normal.y;
-            planesAsFloats[i * 4 + 2] = planes[i].normal.z;
-            planesAsFloats[i * 4 + 3] = planes[i].distance;
-        }
-
-        return planesAsFloats;
-    }
-    
-    public static Vector3 QuaternionTransform(Quaternion q, Vector3 v)
-    {
-        var tt = new Vector3(q.x, q.y, q.z);
-        var t = 2 * Vector3.Cross(tt, v);
-        return v + q.w * t + Vector3.Cross(tt, t);
-    }
-
     public static Quaternion RotationMatrixToQuaternion(Matrix4x4 a)
     {
         Quaternion q = Quaternion.identity;
@@ -283,6 +222,13 @@ public static class Helper
             }
         }
         return q;
+    }
+
+    public static Vector3 QuaternionTransform(Quaternion q, Vector3 v)
+    {
+        var tt = new Vector3(q.x, q.y, q.z);
+        var t = 2 * Vector3.Cross(tt, v);
+        return v + q.w * t + Vector3.Cross(tt, t);
     }
 
     public static Vector4 QuanternionToVector4(Quaternion q)
@@ -339,7 +285,6 @@ public static class Helper
         return data;
     }
 
-
     public static int GetIdFromColor(Color color)
     {
         int b = (int)(color.b * 255.0f);
@@ -352,44 +297,7 @@ public static class Helper
 
         return r + g + b;
     }
-
-    public static Matrix4x4 GetProjectionMatrix(Camera camera)
-    {
-        bool d3d = SystemInfo.graphicsDeviceVersion.IndexOf("Direct3D") > -1;
-        Matrix4x4 P = camera.projectionMatrix;
-        if (d3d)
-        {
-            // Invert Y for rendering to a render texture
-            for (int i = 0; i < 4; i++)
-            {
-                P[1, i] = -P[1, i];
-            }
-            // Scale and bias from OpenGL -> D3D depth range
-            for (int i = 0; i < 4; i++)
-            {
-                P[2, i] = P[2, i] * 0.5f + P[3, i] * 0.5f;
-            }
-        }
-
-        return P;
-    }
-
-    //public static string DownloadRecipeFile(string iName)
-    //{
-    //    Debug.Log("Downloading pdb file");
-    //    var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/recipes/" + iName + ".json");
-    //    //var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
-    //    while (!www.isDone)
-    //    {
-    //        EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
-    //    }
-    //    EditorUtility.ClearProgressBar();
-    //    if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
-    //    var path = _defaultPdbDirectory + iName + ".json";
-    //    File.WriteAllText(path, www.text);
-    //    return path;
-    //}
-
+    
     public static Vector3 CubicInterpolate(Vector3 y0, Vector3 y1, Vector3 y2, Vector3 y3, float mu)
     {
         float mu2 = mu * mu;
@@ -401,6 +309,51 @@ public static class Helper
         a3 = y1;
 
         return (a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3);
+    }
+
+    public static Matrix4x4 FloatArrayToMatrix4X4(float[] floatArray)
+    {
+        var matrix = new Matrix4x4();
+
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                matrix[i, j] = floatArray[i * 4 + j];
+            }
+        }
+
+        return matrix;
+    }
+
+    public static float[] Matrix4X4ToFloatArray(Matrix4x4 matrix)
+    {
+        var floatArray = new float[16];
+
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                floatArray[i * 4 + j] = matrix[j, i];
+            }
+        }
+
+        return floatArray;
+    }
+
+    public static float[] FrustrumPlanesAsFloats(Camera _camera)
+    {
+        var planes = GeometryUtility.CalculateFrustumPlanes(_camera);
+        var planesAsFloats = new float[6 * 4];
+        for (int i = 0; i < planes.Length; i++)
+        {
+            planesAsFloats[i * 4] = planes[i].normal.x;
+            planesAsFloats[i * 4 + 1] = planes[i].normal.y;
+            planesAsFloats[i * 4 + 2] = planes[i].normal.z;
+            planesAsFloats[i * 4 + 3] = planes[i].distance;
+        }
+
+        return planesAsFloats;
     }
 }
 

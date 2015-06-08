@@ -4,7 +4,7 @@ uniform float4 _FrustrumPlanes[6];
 
 uniform	int _NumInstances;
 uniform	StructuredBuffer<float4> _InstancePositions;
-uniform	RWStructuredBuffer<float4> _InstanceCullFlags;
+uniform	RWStructuredBuffer<int4> _InstanceCullFlags;
 
 bool SpherePlaneTest(float4 plane, float3 center, float radius)
 {

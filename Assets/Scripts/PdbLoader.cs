@@ -37,8 +37,6 @@ public static class PdbLoader
         new Color(255,165,0) / 255,       // P        orange      
         new Color(255,200,50) / 255       // S        yellow      
     };
-    
-    
 
     public static string DownloadPdbFile(string pdbName, string dstPath)
     {
@@ -63,6 +61,22 @@ public static class PdbLoader
 
         return null;
     }
+
+    //public static string DownloadRecipeFile(string iName)
+    //{
+    //    Debug.Log("Downloading pdb file");
+    //    var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/recipes/" + iName + ".json");
+    //    //var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
+    //    while (!www.isDone)
+    //    {
+    //        EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
+    //    }
+    //    EditorUtility.ClearProgressBar();
+    //    if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
+    //    var path = _defaultPdbDirectory + iName + ".json";
+    //    File.WriteAllText(path, www.text);
+    //    return path;
+    //}
 
     public static Bounds GetBounds(List<Vector4> atoms)
     {

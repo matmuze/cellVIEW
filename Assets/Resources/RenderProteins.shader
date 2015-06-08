@@ -4,8 +4,7 @@ Shader "Custom/RenderProteins"
 		
 	#include "UnityCG.cginc"
 	#include "Helper.cginc"		
-	#include "Common.cginc"	
-		
+	#include "Common.cginc"			
 	
 	uniform int _EnableLod;
 	uniform	StructuredBuffer<float4> _ProteinInstanceInfo;
@@ -18,17 +17,19 @@ Shader "Custom/RenderProteins"
 	uniform StructuredBuffer<int4> _ProteinSphereBatchInfos;	
 
 	uniform StructuredBuffer<float4> _ProteinUnitInstancePosition;	
-
+	
 	void vs_protein(uint id : SV_VertexID, out vs2ds output)
 	{		
 		int4 sphereBatchInfo = _ProteinSphereBatchInfos[id];	
-		output.id = sphereBatchInfo.x;
-
-		float4 infos = _ProteinInstanceInfo[output.id];
 		
+		float4 infos = _ProteinInstanceInfo[sphereBatchInfo.x];		
+		float3 color = ColorCorrection(_IngredientColors[infos.x]);
+		float3 highlight = HighlightColor(color);
+
+		output.id = sphereBatchInfo.x;
 		output.type = infos.x;		
 		output.state = infos.y;
-		output.color = _IngredientColors[output.type]; // Read color here and pass it to the next levels to avoid unnecessary buffer reads
+		output.color = (output.state == 0) ? color : highlight; // Read color here and pass it to the next levels to avoid unnecessary buffer reads
 		output.rot = _ProteinInstanceRotations[output.id];	
 		output.pos = _ProteinInstancePositions[output.id].xyz * _Scale;	
 	
@@ -44,6 +45,8 @@ Shader "Custom/RenderProteins"
 		output.radiusScale = ((_EnableLod) ? lerp(radiusMin, radiusMax, radiusLerp) : 1) * _Scale;	
 		output.sphereCount = sphereBatchInfo.z;	
 		output.sphereStart = sphereBatchInfo.w;
+
+		//output.sphereCount = 0;	
 	}	
 
 	//--------------------------------------------------------------------------------------
@@ -99,7 +102,7 @@ Shader "Custom/RenderProteins"
 
 		gs2fs output;	
 		output.id = input[0].id;		
-		output.color = ColorCorrection(input[0].color);			
+		output.color = input[0].color;			
 		output.radius = input[0].radius;
 		output.lambertFalloff = 1-( max(d - minl, 0) / (maxl -minl));
 

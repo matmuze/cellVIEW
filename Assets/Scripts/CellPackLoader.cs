@@ -201,15 +201,13 @@ public static class CellPackLoader
                 //     SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
                 //}
 			}
-
-			SceneManager.Instance.UnitAtomCount += atoms.Count * recipeDictionary[j]["results"].Count;
 			
             Debug.Log("Added: " + pdbName + " num instances: " + recipeDictionary[j]["results"].Count);
 			Debug.Log("*****");
         }
 	}
 	
-	 public static void LoadRecipe()
+	public static void LoadRecipe()
     {
         //var proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
         if (!Directory.Exists(ProteinDiretory)) throw new Exception("No directory found at: " + ProteinDiretory);
@@ -234,7 +232,6 @@ public static class CellPackLoader
 			AddRecipeIngredients (resultData["compartments"][i]["interior"]["ingredients"]);
 			AddRecipeIngredients (resultData ["compartments"] [i] ["surface"] ["ingredients"]);
         }
-		SceneManager.Instance.UploadAllData();
     }
 
     public static void LoadMembrane()
@@ -242,8 +239,6 @@ public static class CellPackLoader
         var membraneDataPath = Application.dataPath + "/../Data/HIV/membrane/HIV_mb.bin";
         if (!File.Exists(membraneDataPath)) throw new Exception("No file found at: " + membraneDataPath);
         SceneManager.Instance.LoadMembrane(membraneDataPath, Vector3.zero, Quaternion.identity);
-
-        SceneManager.Instance.UploadAllData();
     }
 
     public static void LoadRna()
@@ -264,31 +259,30 @@ public static class CellPackLoader
         }
 
         SceneManager.Instance.LoadRna(controlPoints);
-        SceneManager.Instance.UploadAllData();
     }
 
     public static void LoadScene()
     {
         LoadRecipe();
-        //LoadMembrane();
+        LoadMembrane();
         //LoadRna();
         
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        //int n = 3;
+        int n = 1;
 
-        //for (int i = -n; i <= n; i++)
-        //{
-        //    for (int j = -n; j <= n; j++)
-        //    {
-        //        for (int k = -n; k <= n; k++)
-        //        {
-        //            SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
-        //        }
-        //    }
-        //}
-
+        for (int i = -n; i <= n; i++)
+        {
+            for (int j = -n; j <= n; j++)
+            {
+                for (int k = -n; k <= n; k++)
+                {
+                    SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
+                }
+            }
+        }
+        
         Debug.Log("Unit atom count " + SceneManager.Instance.UnitAtomCount);
         Debug.Log("Global atom count " + SceneManager.Instance.GlobalAtomCount);
 

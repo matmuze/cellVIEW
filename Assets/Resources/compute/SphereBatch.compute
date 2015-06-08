@@ -20,7 +20,7 @@ uniform	StructuredBuffer<float4> _IngredientClusterStart;
 
 uniform	StructuredBuffer<float4> _ProteinInstanceInfo;
 uniform	StructuredBuffer<float4> _ProteinInstancePositions;	
-uniform StructuredBuffer<float4> _ProteinInstanceCullFlags;	
+uniform StructuredBuffer<int4> _ProteinInstanceCullFlags;	
 
 uniform AppendStructuredBuffer<int4> _ProteinSphereBatchInfos;
 
@@ -30,7 +30,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 	if(id.x >= (uint)_NumInstances) return;
 	
 	float4 infos = _ProteinInstanceInfo[id.x];	
-	float4 cullFlags = _ProteinInstanceCullFlags[id.x];
+	int4 cullFlags = _ProteinInstanceCullFlags[id.x];
 
 	// if instance is culled return
 	if(cullFlags.x == 1 || cullFlags.y == 1 || cullFlags.z == 1 || _ProteinVisibilityFlag[infos.x] == 0) return;

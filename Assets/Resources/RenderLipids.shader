@@ -9,22 +9,27 @@ Shader "Custom/RenderLipids"
 	uniform StructuredBuffer<float4> _LipidAtomPositions;		
 	uniform StructuredBuffer<float4> _LipidSphereBatchInfos;	
 	uniform StructuredBuffer<float4> _LipidInstancePositions;
-	uniform StructuredBuffer<int> _LipidInstanceCullFlags;	
+	uniform StructuredBuffer<int4> _LipidInstanceCullFlags;	
+		
+	uniform int _EnableCrossSection;
+	uniform float4 _CrossSectionPlane;
 
 	void vs_lipid(uint id : SV_VertexID, out vs2ds output)
 	{		
 		float4 sphereBatchInfo = _LipidSphereBatchInfos[id];	
+		float4 lipidPosition = _LipidInstancePositions[id.x];
 				
-		output.id = 66666 + id.x; // Offset id to get unique id
+		output.id = id.x; // Offset id to get unique id
 		output.type = 0;		
 		output.state = 0;
 		output.rot = float4(0,0,0,1);	
 		output.color = float3(1,1,0); // Read color here and pass it to the next levels to avoid unnecessary buffer reads
-		output.pos = _LipidInstancePositions[id.x].xyz * _Scale;
+		output.pos = lipidPosition.xyz * _Scale;
 			
-		// Find visibility
-		bool cullInstance = _LipidInstanceCullFlags[id.x] > 0;
-	
+		int4 cullFlags = _LipidInstanceCullFlags[id.x];
+		//bool cullBatch = cullFlags.x == 1;
+		bool cullBatch = cullFlags.x == 1 || cullFlags.y == 1 || cullFlags.z == 1;
+		
 		float beginRange = _FirstLevelBeingRange;
 		float endRange = 50;		
 		float cameraDistance = dot(output.pos - _WorldSpaceCameraPos, _CameraForward);
@@ -37,13 +42,22 @@ Shader "Custom/RenderLipids"
 		float radiusMax = output.lodLevel == 0 ? 1.5 : 2;
 		
 		output.radiusScale = lerp(radiusMin, radiusMax, radiusLerp) * _Scale;
-		output.decimationFactor = (output.lodLevel == 0 ? 1 : 2);
+		output.decimationFactor = (output.lodLevel == 0 ? 1 : 4);
 		output.sphereStart = sphereBatchInfo.y;
-		output.sphereCount = (cullInstance) ? 0 : floor(sphereBatchInfo.x / output.decimationFactor);			
+		output.sphereCount = (cullBatch) ? 0 : floor(sphereBatchInfo.x / output.decimationFactor);		
+
+		//output.radiusScale = lipidPosition.w * _Scale;
+		//output.sphereCount = (cullBatch) ? 0 : 1;		
+		//output.sphereCount = 0;			
 	}	
 
 	//--------------------------------------------------------------------------------------
 			
+	bool SpherePlaneTest( float4 plane, float3 center, float offset)
+	{
+		return dot(plane.xyz, center - plane.xyz * -plane.w) + offset > 0;
+	}
+
 	[domain("isoline")]
 	void ds_lipid(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLocation, out ds2gs output)
 	{
@@ -51,14 +65,20 @@ Shader "Custom/RenderLipids"
 		int y = round(uv.x * input.tessFactor[0]);		
 		int sphereId = x + y * input.tessFactor[0];	
 		int sphereIndex = sphereId * op[0].decimationFactor;						
-		float4 spherePosition = _LipidAtomPositions[op[0].sphereStart + sphereIndex];				
-	
+		float4 sphere = _LipidAtomPositions[op[0].sphereStart + sphereIndex];				
+		float3 sphereCenter = op[0].pos + _LipidAtomPositions[op[0].sphereStart + sphereIndex].xyz * _Scale;
+
+		bool cullAtom = !SpherePlaneTest(_CrossSectionPlane, sphereCenter, 0) && _EnableCrossSection == 1;	
+
 		output.id = op[0].id;
 		output.type = op[0].type;
 		output.state = op[0].state;
 		output.color = op[0].color;
-		output.pos = op[0].pos + spherePosition.xyz * _Scale;	
-		output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].sphereCount) ? 0 : spherePosition.w * op[0].radiusScale; // Discard unwanted spheres		
+		output.pos = sphereCenter;		
+		output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].sphereCount || cullAtom) ? 0 : sphere.w * op[0].radiusScale; // Discard unwanted spheres		
+
+		//output.pos = op[0].pos;
+		//output.radius = 1 * op[0].radiusScale;
 	}
 
 	//--------------------------------------------------------------------------------------
@@ -89,7 +109,9 @@ Shader "Custom/RenderLipids"
 		//}			
 		//output.color = SetHSL(_IngredientColors[output.type].rgb, float3(-1, (output.state == 0) ? 0.35 : 0.5 + (sin(_Time.z * 3) + 1) / 4 , -1)) * shadowFactor;		
 	
-		float4 pos = mul(UNITY_MATRIX_MVP, float4(input[0].pos, 1));
+		float4 viewPos = mul(UNITY_MATRIX_MV, float4(input[0].pos, 1));
+		viewPos -= normalize( viewPos ) * input[0].radius;
+		float4 projPos = mul(UNITY_MATRIX_P, float4(viewPos.xyz, 1));
 		float4 offset = mul(UNITY_MATRIX_P, float4(input[0].radius, input[0].radius, 0, 0));
 
 		gs2fs output;	
@@ -106,21 +128,21 @@ Shader "Custom/RenderLipids"
 		float2 triOffset = float2(triBaseHalf, 1.0);
 
 		output.uv = float2(0, 0) - triOffset;
-		output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+		output.pos = projPos + float4(output.uv * offset.xy, 0, 0);
 		triangleStream.Append(output);
 
 		output.uv = float2(triBaseHalf, triHeigth) - triOffset;
-		output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+		output.pos = projPos + float4(output.uv * offset.xy, 0, 0);
 		triangleStream.Append(output);	
 								
 		output.uv = float2(triBase,0) - triOffset;
-		output.pos = pos + float4(output.uv * offset.xy, 0, 0);
+		output.pos = projPos + float4(output.uv * offset.xy, 0, 0);
 		triangleStream.Append(output);
 	}
 
 	//--------------------------------------------------------------------------------------
 	
-	void fs_lipid(gs2fs input, out float4 color : COLOR0, out float4 id : COLOR1, out float depth : sv_depthgreaterequal) 
+	void fs_lipid(gs2fs input, out float4 color : COLOR0, out int id : COLOR1, out float depth : sv_depthgreaterequal) 
 	{					
 		float lensqr = dot(input.uv, input.uv);   
 		if(lensqr > 1) discard;
@@ -132,11 +154,8 @@ Shader "Custom/RenderLipids"
 		//float ndotl = pow(max( 0.0, dot(float3(0,0,1), normal)),1); //, 0.15 * input.lambertFalloff);						
 		color = float4(input.color, 1);		
 								
-		// Find id color
-		uint t1 = input.id / 256;
-		uint t2 = t1 / 256;
-		float3 colorId = float3(t2 % 256, t1 % 256, input.id % 256) * 1/255;	
-		id = float4(colorId, 1);		
+		// Set id to idbuffer
+		id = input.id;		
 
 		// Find depth
 		float eyeDepth = LinearEyeDepth(input.pos.z) + input.radius * (1-normal.z);

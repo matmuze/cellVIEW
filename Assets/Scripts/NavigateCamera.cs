@@ -1,6 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
-
+using Component = UnityEngine.Component;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -9,6 +13,8 @@ using UnityEditor;
 public class NavigateCamera : MonoBehaviour
 {
     const float DefaultDistance = 5.0f;
+
+    public Vector3 TargetPosition;
 
     public float AcrBallRotationSpeed = 0.25f;
     public float FpsRotationSpeed = 0.25f;
@@ -19,32 +25,72 @@ public class NavigateCamera : MonoBehaviour
     public float Distance;
     public float EulerAngleX;
     public float EulerAngleY;
-    
-    public GameObject Target;
-    public Vector3 TargetPosition;
+
+    /*****/
+
+    private GameObject Target;
+
+    private bool forward;
+    private bool backward;
+    private bool right;
+    private bool left;
+
+    /*****/
+
+    void OnEnable()
+    {
+        #if UNITY_EDITOR
+        if (!EditorApplication.isPlaying) EditorApplication.update += Update;
+        #endif
+    }
+
+    private float deltaTime = 0;
+    private float lastUpdateTime = 0;
 
     private float deltaScroll;
-    
+
     void Update()
     {
-        bool doPlayModeStuffs = true;
+        deltaTime = Time.realtimeSinceStartup - lastUpdateTime;
+        lastUpdateTime = Time.realtimeSinceStartup;
 
-        #if UNITY_EDITOR
-            if (!EditorApplication.isPlaying) doPlayModeStuffs = false;
-        #endif
-        
-        if (doPlayModeStuffs && Mathf.Abs(deltaScroll) > 0.01f)
+        //Debug.Log(deltaTime);
+
+        if (Mathf.Abs(deltaScroll) > 0.01f)
         {
-            Distance -= deltaScroll * ZoomingSpeed;
+            deltaScroll *= 0.90f;
+            Distance -= deltaScroll * deltaTime;
             transform.position = TargetPosition - transform.forward * Distance;
 
             if (Distance < 0)
             {
-                TargetPosition = transform.position + transform.forward * DefaultDistance;
+                TargetPosition = transform.position + transform.forward*DefaultDistance;
                 Distance = Vector3.Distance(TargetPosition, transform.position);
             }
+        }
 
-            deltaScroll *= 0.90f;
+        if (forward)
+        {
+            TargetPosition += gameObject.transform.forward * TranslationSpeed * deltaTime; 
+            transform.position += gameObject.transform.forward * TranslationSpeed * deltaTime; 
+        }
+
+        if (backward)
+        {
+            TargetPosition -= gameObject.transform.forward * TranslationSpeed * deltaTime;
+            transform.position -= gameObject.transform.forward * TranslationSpeed * deltaTime; 
+        }
+
+        if (right)
+        {
+            TargetPosition += gameObject.transform.right * TranslationSpeed * deltaTime;
+            transform.position += gameObject.transform.right * TranslationSpeed * deltaTime; 
+        }
+
+        if (left)
+        {
+            TargetPosition -= gameObject.transform.right * TranslationSpeed * deltaTime;
+            transform.position -= gameObject.transform.right * TranslationSpeed * deltaTime; 
         }
     }
 
@@ -61,7 +107,7 @@ public class NavigateCamera : MonoBehaviour
         if (Event.current.alt && Event.current.type == EventType.mouseDrag &&Event.current.button == 0)
         {
             EulerAngleX += Event.current.delta.x * AcrBallRotationSpeed;
-            EulerAngleY += Event.current.delta.y * AcrBallRotationSpeed;
+            EulerAngleY += Event.current.delta.y * AcrBallRotationSpeed; 
 
             var rotation = Quaternion.Euler(EulerAngleY, EulerAngleX, 0.0f);
             var position = TargetPosition + rotation * Vector3.back * Distance;
@@ -74,7 +120,7 @@ public class NavigateCamera : MonoBehaviour
         if (!Event.current.alt && Event.current.type == EventType.mouseDrag && Event.current.button == 0)
         {
             EulerAngleX += Event.current.delta.x * FpsRotationSpeed;
-            EulerAngleY += Event.current.delta.y * FpsRotationSpeed;
+            EulerAngleY += Event.current.delta.y * FpsRotationSpeed; 
 
             var rotation = Quaternion.Euler(EulerAngleY, EulerAngleX, 0.0f);
 
@@ -88,64 +134,63 @@ public class NavigateCamera : MonoBehaviour
             transform.position += transform.up * Event.current.delta.y * PannigSpeed;
 
             TargetPosition -= transform.right * Event.current.delta.x * PannigSpeed;
-            transform.position -= transform.right * Event.current.delta.x * PannigSpeed;
+            transform.position -= transform.right * Event.current.delta.x * PannigSpeed; 
         }
 
         if (Event.current.type == EventType.ScrollWheel)
         {
-            deltaScroll = Event.current.delta.y;
-
-            Distance -= deltaScroll * ZoomingSpeed;
-            transform.position = TargetPosition - transform.forward * Distance;
+            deltaScroll += Event.current.delta.y * ZoomingSpeed;
 
             if (Distance < 0)
             {
                 TargetPosition = transform.position + transform.forward * DefaultDistance;
                 Distance = Vector3.Distance(TargetPosition, transform.position);
             }
-
         }
 
         if (Event.current.type == EventType.KeyDown)
         {
             if (Event.current.keyCode == KeyCode.R)
             {
+                //Distance = 75;
                 TargetPosition = Vector3.zero;
                 transform.position = TargetPosition - transform.forward * Distance;
             }
 
             if (Event.current.keyCode == KeyCode.F)
             {
+                if (!Target)
+                {
+                    Target = GameObject.Find("Selected Element");
+                }
+
                 if (Target)
                 {
+                    //Distance = 75;
                     TargetPosition = Target.gameObject.transform.position;
                     transform.position = TargetPosition - transform.forward * Distance;
                 }
             }
+        }
 
-            if (Event.current.keyCode == KeyCode.W)
-            {
-                TargetPosition += gameObject.transform.forward * TranslationSpeed;
-                transform.position += gameObject.transform.forward * TranslationSpeed;
-            }
+        if (Event.current.keyCode == KeyCode.W)
+        {
+            forward = Event.current.type == EventType.KeyDown;
+        }
 
-            if (Event.current.keyCode == KeyCode.A)
-            {
-                TargetPosition -= gameObject.transform.right * TranslationSpeed;
-                transform.position -= gameObject.transform.right * TranslationSpeed;
-            }
+        if (Event.current.keyCode == KeyCode.S)
+        {
+            backward = Event.current.type == EventType.KeyDown;
+        }
 
-            if (Event.current.keyCode == KeyCode.D)
-            {
-                TargetPosition += gameObject.transform.right * TranslationSpeed;
-                transform.position += gameObject.transform.right * TranslationSpeed;
-            }
+        if (Event.current.keyCode == KeyCode.A)
+        {
+            left = Event.current.type == EventType.KeyDown;
+        }
 
-            if (Event.current.keyCode == KeyCode.S)
-            {
-                TargetPosition -= gameObject.transform.forward * TranslationSpeed;
-                transform.position -= gameObject.transform.forward * TranslationSpeed;
-            }
+        if (Event.current.keyCode == KeyCode.D)
+        {
+            right = Event.current.type == EventType.KeyDown;
         }
     }
 }

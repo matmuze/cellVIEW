@@ -77,11 +77,21 @@ float3 ColorCorrection(float3 color)
 {
 	float3 c = RGBtoHSL(color);		
 	
-	c.z = 0.6;
-	c.y = 0.6;
+	c.z = 0.5;
+	c.y = 0.5;
 
 	return 	HSLtoRGB(c);	
 }
+
+float3 HighlightColor(float3 color)
+	{
+		float3 c = RGBtoHSL(color);		
+	
+		c.y = 1.0;
+		c.z = 0.5;
+
+		return 	HSLtoRGB(c);	
+	}
 
 float3 SetHSL(float3 color, float3 hsl)
 {

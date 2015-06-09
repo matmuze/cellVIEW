@@ -13,7 +13,7 @@ public static class PdbLoader
 {
     public static float[] AtomRadii = { 1.548f, 1.100f, 1.400f, 1.348f, 1.880f, 1.808f };
     public static string[] AtomSymbols = { "C", "H", "N", "O", "P", "S" };
-    private static string _defaultPdbDirectory = Application.dataPath + "/../Data/Default/";
+    public static string DefaultPdbDirectory = Application.dataPath + "/../Data/Default/";
 
     public struct Atom
     {
@@ -202,10 +202,15 @@ public static class PdbLoader
                 var x = float.Parse(line.Substring(30, 8));
                 var y = float.Parse(line.Substring(38, 8));
                 var z = float.Parse(line.Substring(46, 8));
-                var symbol = line.Substring(76, 1)[0];
+                var name = line.Substring(12, 4).Trim();
 
-                var symbolId = Array.IndexOf(AtomSymbols, symbol);
-                if (symbolId < 0) symbolId = 0;
+                // Remove numbers from the name
+                var t = Regex.Replace(name, @"[\d-]", string.Empty).Trim();
+                var symbolId = Array.IndexOf(AtomSymbols, t[0].ToString());
+                if (symbolId < 0)
+                {
+                    throw new Exception("Atom symbol unknown: " + name);
+                }
 
                 atomSpheres.Add(new Vector4(-x, y, z, AtomRadii[symbolId]));
             }

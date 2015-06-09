@@ -11,6 +11,8 @@ public class DisplaySettings : MonoBehaviour
     public bool EnableShadows;
     public bool EnableOcclusionCulling;
     public bool DebugObjectCulling;
+    public bool ShowMembrane;
+    public bool ShowRNA;
 
     //DNA/RNA settings
     public bool EnableDNAConstraints;

@@ -100,6 +100,8 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.ContourStrength = EditorGUILayout.Slider("Contour strength", DisplaySettings.Instance.ContourStrength, 0, 1);
                     DisplaySettings.Instance.ContourOptions = EditorGUILayout.Popup("Contours Options", DisplaySettings.Instance.ContourOptions, _contourOptionsLabels);
                     DisplaySettings.Instance.EnableShadows = EditorGUILayout.Toggle("Enable Shadows", DisplaySettings.Instance.EnableShadows);
+                    DisplaySettings.Instance.ShowMembrane = EditorGUILayout.Toggle("Show Membrane", DisplaySettings.Instance.ShowMembrane);
+                    DisplaySettings.Instance.ShowRNA = EditorGUILayout.Toggle("Show RNA", DisplaySettings.Instance.ShowRNA);
 
                     //DisplaySettings.Instance.EnableOcclusionCulling = EditorGUILayout.Toggle("Enable Culling", DisplaySettings.Instance.EnableOcclusionCulling);
                     DisplaySettings.Instance.DebugObjectCulling = EditorGUILayout.Toggle("Debug Culling", DisplaySettings.Instance.DebugObjectCulling);

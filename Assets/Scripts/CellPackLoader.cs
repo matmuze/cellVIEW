@@ -262,8 +262,8 @@ public static class CellPackLoader
     public static void LoadScene()
     {
         LoadRecipe();
-        //LoadMembrane();
-        //LoadRna();
+        LoadMembrane();
+        LoadRna();
         
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();

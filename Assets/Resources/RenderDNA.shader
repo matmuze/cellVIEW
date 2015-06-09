@@ -5,7 +5,7 @@ CGINCLUDE
 #include "UnityCG.cginc"
 #include "Helper.cginc"		
 	
-#define NUM_STEPS_PER_SEGMENT_MAX 36
+#define NUM_STEPS_PER_SEGMENT_MAX 16
 #define NUM_ROOT_POINTS_FLOAT (NUM_STEPS_PER_SEGMENT_MAX / 4)
 
 uniform int _NumSteps;
@@ -18,7 +18,7 @@ uniform float _SegmentLength;
 
 uniform	StructuredBuffer<float4> _DnaAtoms;
 uniform	StructuredBuffer<float4> _DnaControlPoints;
-//uniform	StructuredBuffer<float4> _DnaControlPointsNormal;
+uniform	StructuredBuffer<float4> _DnaControlPointsNormals;
 
 //--------------------------------------------------------------------------------------
 
@@ -28,6 +28,8 @@ struct vs2ds
 	int numSteps : INT1;		
 	int localSphereCount : INT2;		
 	int globalSphereCount : INT3;		
+	
+	float radiusScale : FLOAT0;		
 		
 	float3 pos0 : FLOAT30;
 	float3 pos1 : FLOAT31;
@@ -56,8 +58,8 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	float3 pos2 = _DnaControlPoints[id + 2].xyz;
 	float3 pos3 = _DnaControlPoints[id + 3].xyz;
 
-	//output.n1 = _DnaControlPointsNormal[id + 1];
-	//output.n2 = _DnaControlPointsNormal[id + 2];
+	output.n1 = _DnaControlPointsNormals[id].xyz;
+	output.n2 = _DnaControlPointsNormals[id + 1].xyz;
 
 	output.pos0 = pos0;
 	output.pos1 = pos1;
@@ -65,11 +67,15 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.pos3 = pos3;
 	
 	output.segmentId = id.x;
-	output.numSteps = numSteps;
-	output.rootPoints[0][0] = 0;
-	output.localSphereCount = 20;
-	output.globalSphereCount = numSteps * output.localSphereCount;
+	output.numSteps = numSteps;/*
+	output.localSphereCount = 1;
+	output.radiusScale = 2;*/
 
+	output.localSphereCount = 10;
+	output.radiusScale = 1;
+
+	output.globalSphereCount = numSteps * output.localSphereCount;
+	
 	/*****/
 
 	// First pass to find out the size of the last interval 
@@ -79,33 +85,40 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	float3 previous = pos1;	
 	float interpolationValue = linearStepSize;
 
+	float rootPoints[NUM_STEPS_PER_SEGMENT_MAX];		
+	for(int i = 0; i < NUM_STEPS_PER_SEGMENT_MAX; i++)
+	{
+		rootPoints[i] = 0;
+	}
+
 	// Find the number of segments
-	while(stepsCount < numSteps-1)
+	for(int i = 1; i < numSteps; i++)
 	{	
 		// Linear search
-		for( uint i = 0; i < numLinearSeachStep; i++ )
+		[unroll(4)]
+		while(true)
 		{					
 			current = CubicInterpolate(pos0, pos1, pos2, pos3, interpolationValue);						
-			if(stepLength - distance(current, previous) < 0) break;		
-			interpolationValue += linearStepSize;
+			interpolationValue += (distance(current, previous) < stepLength) ? linearStepSize : 0;
 		}
 	
 		float binaryStepSize = linearStepSize * 0.5;
 		interpolationValue -= binaryStepSize;
 
 		// Binary search
-		for( uint i = 0; i < numBinarySearchStep; i++ )
+		[unroll(8)]
+		while(true)
 		{
-			current = CubicInterpolate(pos0, pos1, pos2, pos3, interpolationValue);	
-			binaryStepSize *= 0.5;
-			interpolationValue += (stepLength - distance(current, previous) < 0) ? -binaryStepSize : binaryStepSize;							
-		}		
+			binaryStepSize *= 0.5;	
+			current = CubicInterpolate(pos0, pos1, pos2, pos3, interpolationValue);				
+			interpolationValue += (stepLength - distance(current, previous) < 0) ? -binaryStepSize : binaryStepSize;									
+		}	
 				
 		stepsCount ++;				
 		previous = current;
 		interpolationValue += linearStepSize;			
 	}
-		
+			
 	// Second pass with corrected step length to normalize the spacing between each steps 
 			
 	stepsCount = 0;
@@ -116,33 +129,39 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	stepLength += stepLengthOffset / (float)numSteps;	// Correct segment length to fill the last blank
 	
 	// Find the number of segments
-	while(stepsCount < numSteps-1)
+	for(int i = 1; i < numSteps; i++)
 	{	
 		// Linear search
-		for( uint i = 0; i < numLinearSeachStep; i++ )
+		[unroll(4)]
+		while(true)
 		{					
 			current = CubicInterpolate(pos0, pos1, pos2, pos3, interpolationValue);						
-			if(stepLength - distance(current, previous) < 0) break;		
-			interpolationValue += linearStepSize;
+			interpolationValue += (distance(current, previous) < stepLength) ? linearStepSize : 0;
 		}
 	
 		float binaryStepSize = linearStepSize * 0.5;
 		interpolationValue -= binaryStepSize;
 
 		// Binary search
-		for( uint i = 0; i < numBinarySearchStep; i++ )
+		[unroll(8)]
+		while(true)
 		{
-			current = CubicInterpolate(pos0, pos1, pos2, pos3, interpolationValue);	
-			binaryStepSize *= 0.5;
-			interpolationValue += (stepLength - distance(current, previous) < 0) ? -binaryStepSize : binaryStepSize;							
-		}		
-				
-		stepsCount ++;		
-		output.rootPoints[stepsCount/4][stepsCount%4] = interpolationValue;			
+			binaryStepSize *= 0.5;	
+			current = CubicInterpolate(pos0, pos1, pos2, pos3, interpolationValue);				
+			interpolationValue += (stepLength - distance(current, previous) < 0) ? -binaryStepSize : binaryStepSize;									
+		}	
 		
+		rootPoints[i] = interpolationValue;	
+				
+		stepsCount ++;				
 		previous = current;
 		interpolationValue += linearStepSize;					
 	}	
+
+	for(int i = 0; i < numSteps; i++)
+	{
+		output.rootPoints[i/4][i%4] = rootPoints[i];
+	}
 }	
 
 //--------------------------------------------------------------------------------------
@@ -188,13 +207,6 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	int atomId = sphereId / op[0].numSteps;				
 	int stepId = (sphereId % op[0].numSteps);	
 
-	// Find normal at control points
-	//float3 n1 = op[0].n1; 
-	//float3 n2 = op[0].n2; 
-
-	float3 n1 = normalize(cross(op[0].pos0 - op[0].pos1, op[0].pos2 - op[0].pos1));	
-	float3 n2 = normalize(cross(op[0].pos1 - op[0].pos2,  op[0].pos3 - op[0].pos2));	
-
 	// Find begin step pos	
 	int beingStepId = stepId;	
 	float beingStepLerp =  op[0].rootPoints[beingStepId / 4][beingStepId % 4];
@@ -208,28 +220,45 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	// Find mid step pos
 	float3 diff = endStepPos - beginStepPos;	
 	float3 tangent = normalize(diff);
-	float3 sphereOffset = beginStepPos + diff * 0.5;	
+	float3 baseCenter = beginStepPos + diff * 0.5;	
 	float midStepLerp = beingStepLerp + (endStepLerp - beingStepLerp) * 0.5;
 	
 	// Find binormal
 	float3 crossDirection = float3(0,1,0);	
-	float3 binormal = normalize(lerp(n1, n2, midStepLerp));		
-	//float3 binormal = normalize(cross(tangent, crossDirection));		
-		
+	float3 normal = lerp(op[0].n1, op[0].n2, midStepLerp);	
+	
+	//float3 binormal = normalize(cross(op[0].pos2 - op[0].pos1, normal));
+	float3 binormal = normalize(cross(tangent, normal));
+	normal = normalize(cross(tangent, binormal));
+
+	//float3 cb1 = normalize(cross(op[0].pos0 - op[0].pos1, op[0].pos2 - op[0].pos1));	
+	//float3 cb2 = normalize(cross(op[0].pos1 - op[0].pos2,  op[0].pos3 - op[0].pos2));	
+	
+	//float3 ct1 = normalize(op[0].pos2 - op[0].pos0);
+	//float3 cb1 = normalize(cross(ct1, crossDirection));			
+	//float3 cn1 = normalize(cross(ct1, cb1));
+
+	//float3 ct2 = normalize(op[0].pos3 - op[0].pos1);
+	//float3 cb2 = normalize(cross(ct2, crossDirection));			
+	//float3 cn2 = normalize(cross(ct2, cb2));
+
+	//float3 normal = lerp(cn1, cn2, midStepLerp);
+	//float3 binormal = normalize(cross(tangent, normal));
+	//normal = normalize(cross(tangent, binormal));
+
 	// Do helix rotation of the binormal arround the tangent
 	float angleStep = _TwistFactor * (3.14 / 180);
 	float angleStart = op[0].segmentId * op[0].numSteps * angleStep;
 	float rotationAngle = angleStart + stepId * angleStep; 
 	float4 q = QuaternionFromAxisAngle(tangent, (_EnableTwist == 1) ? rotationAngle : 0 );		
+	
+	normal = QuaternionTransform(q, normal);	
 	binormal = QuaternionTransform(q, binormal);	
-		
-	// Find normal
-	float3 normal = normalize(cross(tangent, binormal));
 
 	// Get rotation to align with the normal
 	float3 from = float3(0,1,0);	// Assuming that the nucleotide is pointing in the up direction
 	float3 to = normal;	
-    float3 axis = -normalize(cross(from, to));
+    float3 axis = normalize(cross(from, to));
 	float cos_theta = dot(normalize(from), normalize(to));
     float angle = acos(cos_theta);
     float4 quat = QuaternionFromAxisAngle(axis, angle);
@@ -237,54 +266,45 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	// Get rotation to align with the binormal
 	float3 from2 = QuaternionTransform(quat, float3(1,0,0));	
 	float3 to2 = binormal;	
-    float3 axis2 = -normalize(cross(from2, to2));
+    float3 axis2 = normalize(cross(from2, to2));
 	float cos_theta2 = dot(normalize(from2), normalize(to2));
     float angle2 = acos(cos_theta2);
     float4 quat2 = QuaternionFromAxisAngle(axis2, angle2);
 	
 	// Fetch nucleotid atoms
-	float4 sphereCenter = _DnaAtoms[atomId];	
+	float4 sphere = _DnaAtoms[atomId];
+	float3 sphereCenter = sphere.xyz;		
+	
+	//sphereCenter.xyz *= 0;
+
+	sphereCenter.xyz = from * atomId /  op[0].localSphereCount * 6;
 	sphereCenter.xyz = QuaternionTransform(quat, sphereCenter.xyz);
 	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
 	
-	//// Use this to draw the coordinate frame for debug
-	//float4 sphereCenter;	
+	//sphereCenter.xyz = normal * atomId /  op[0].localSphereCount * 8;
+
+	// Use this to draw the coordinate frame for debug
 	//int halfSphereCount = op[0].localSphereCount * 0.5;
 	//float hdd = atomId - halfSphereCount;
 			
-	//if(hdd < 0)
-	//{
-	//	float t = abs(hdd) / halfSphereCount;
-	//	sphereCenter = float4(normal * t  * 5, 1); //float3(1,0,0)  * 1;
-	//}
-	//else
-	//{
-	//	float t = abs(hdd) / halfSphereCount;
-	//	sphereCenter = float4(binormal * t * 5, 1); //float3(0,1,0) * t * 1;
-	//}
-
-	//sphereCenter = float4(0,0,0,1);
-	//sphereOffset = lerp(op[0].pos1, op[0].pos2, midsegmentLerp);
+	//if(hdd < 0) sphereCenter.xyz = normal * abs(hdd) / halfSphereCount * 5;
+	//else sphereCenter.xyz = binormal * abs(hdd) / halfSphereCount * 5;
 	
-	//if(beingSegmentLerp == 0) 
+	//baseCenter = lerp(op[0].pos1, op[0].pos2, beingStepLerp);
+	//sphereCenter = float3(0,0,0);
+	
+	//if(beingStepLerp == 0) 
 	//{
-	//	sphereOffset = op[0].pos1;
-	//	sphereCenter.xyz = atomId * n1;
-	//	float3 axis = normalize(op[0].pos0 - op[0].pos2);
-	//	float4 quat2 = QuaternionFromAxisAngle(axis, -90 * 3.12 / 180);
-	//	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
+	//	sphereOffset.xyz = op[0].n1 * atomId / op[0].localSphereCount * 10;
 	//}
 	
-	//if(endSegmentLerp == 1)
+	//if(endStepLerp == 1)
 	//{
-	//	sphereCenter.xyz = atomId * n2;
-	//	float3 axis = normalize(op[0].pos1 - op[0].pos3);
-	//	float4 quat2 = QuaternionFromAxisAngle(axis,  90 * 3.12 / 180);
-	//	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
+	//	sphereOffset.xyz = op[0].n2 * atomId / op[0].localSphereCount * 10;
 	//}
 
-	output.position = sphereOffset * _Scale + sphereCenter * _Scale; 
-	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphereCenter.w * _Scale * 1; // Discard unwanted spheres	
+	output.position = baseCenter * _Scale + sphereCenter * _Scale; 
+	output.radius = sphere.w * op[0].radiusScale * _Scale; // Discard unwanted spheres	
 	//output.color = float3(1, midStepLerp, ((float)atomId / 41.0f));	// Debug colors		
 	output.color = float3(1,0, 0);	// Debug colors		
 	output.id = op[0].segmentId * op[0].numSteps + stepId;
@@ -308,8 +328,10 @@ void GS(point ds2gs input[1], inout TriangleStream<gs2fs> triangleStream)
 		
 	float radius = input[0].radius;
 
-	float4 position = mul(UNITY_MATRIX_MVP, float4(input[0].position, 1));
-	float4 offset = mul(UNITY_MATRIX_P, float4(radius, radius, 0, 0));
+	float4 viewPos = mul(UNITY_MATRIX_MV, float4(input[0].position, 1));
+	viewPos -= normalize( viewPos ) * input[0].radius;
+	float4 projPos = mul(UNITY_MATRIX_P, float4(viewPos.xyz, 1));
+	float4 offset = mul(UNITY_MATRIX_P, float4(input[0].radius, input[0].radius, 0, 0));
 
 	//*****//
 		
@@ -323,15 +345,15 @@ void GS(point ds2gs input[1], inout TriangleStream<gs2fs> triangleStream)
 	output.radius = radius;
 	output.id = input[0].id;
 	output.uv = float2(0, 0) - triOffset;
-	output.position = position + float4(output.uv * offset.xy, 0, 0);
+	output.position = projPos + float4(output.uv * offset.xy, 0, 0);
 	triangleStream.Append(output);
 
 	output.uv = float2(triBaseHalf, triHeigth) - triOffset;
-	output.position = position + float4(output.uv * offset.xy, 0, 0);
+	output.position = projPos + float4(output.uv * offset.xy, 0, 0);
 	triangleStream.Append(output);	
 								
 	output.uv = float2(triBase,0) - triOffset;
-	output.position = position + float4(output.uv * offset.xy, 0, 0);
+	output.position = projPos + float4(output.uv * offset.xy, 0, 0);
 	triangleStream.Append(output);
 }
 

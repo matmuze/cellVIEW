@@ -133,11 +133,6 @@ float3 CubicInterpolate(float3 y0, float3 y1, float3 y2,float3 y3, float3 mu)
    float mu2 = mu*mu;
    float3 a0,a1,a2,a3;
 
-   //a0 = -0.5*y0 + 1.5*y1 - 1.5*y2 + 0.5*y3;
-   //a1 = y0 - 2.5*y1 + 2*y2 - 0.5*y3;
-   //a2 = -0.5*y0 + 0.5*y2;
-   //a3 = y1;
-
    a0 = y3 - y2 - y0 + y1;
    a1 = y0 - y1 - a0;
    a2 = y2 - y0;

@@ -150,6 +150,7 @@ public class SceneRenderer : MonoBehaviour
         _renderDnaMaterial.SetFloat("_TwistFactor", DisplaySettings.Instance.TwistFactor);
         _renderDnaMaterial.SetBuffer("_DnaAtoms", ComputeBufferManager.Instance.DnaAtoms);
         _renderDnaMaterial.SetBuffer("_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        _renderDnaMaterial.SetBuffer("_DnaControlPointsNormals", ComputeBufferManager.Instance.DnaControlPointsNormals);
 
         // Shadow data
         //RenderSceneMaterial.SetInt("_EnableShadows", Convert.ToInt32(DisplaySettings.Instance.EnableShadows));
@@ -276,7 +277,7 @@ public class SceneRenderer : MonoBehaviour
             CrossSectionCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
         }
 
-        if (SceneManager.Instance.NumLipidInstances > 0)
+        if (SceneManager.Instance.NumLipidInstances > 0 && DisplaySettings.Instance.ShowMembrane)
         {
             // Compute lipid cross section 
             CrossSectionCS.SetInt("_UseOffset", 1);
@@ -303,7 +304,7 @@ public class SceneRenderer : MonoBehaviour
             FrustrumCullingCS.Dispatch(0, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
         }
 
-        if (SceneManager.Instance.NumLipidInstances > 0)
+        if (SceneManager.Instance.NumLipidInstances > 0 && DisplaySettings.Instance.ShowMembrane)
         {
             // Compute lipids frustrum culling
             FrustrumCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
@@ -337,7 +338,7 @@ public class SceneRenderer : MonoBehaviour
             OcclusionCullingCS.Dispatch(2, (int)Mathf.Ceil(SceneManager.Instance.NumProteinInstances / 32.0f), 1, 1);
         }
 
-        if (SceneManager.Instance.NumLipidInstances > 0)
+        if (SceneManager.Instance.NumLipidInstances > 0 && DisplaySettings.Instance.ShowMembrane)
         {
             // Do lipid occlusion culling
             OcclusionCullingCS.SetInt("_NumInstances", SceneManager.Instance.NumLipidInstances);
@@ -395,6 +396,8 @@ public class SceneRenderer : MonoBehaviour
             Graphics.Blit(src, dst); return;
         }
 
+        ComputeDNAStrands();
+
         ComputeCrossSection();
         ComputeFrustrumCulling();
         ComputeOcclusionCulling(false); // Do pre-render occlusion test
@@ -435,9 +438,11 @@ public class SceneRenderer : MonoBehaviour
         Graphics.SetRenderTarget(new[] { colorBuffer.colorBuffer, idBuffer.colorBuffer }, depthBuffer.depthBuffer);
         
         // Draw lipids
-        _renderLipidsMaterial.SetPass(0);
-        //Graphics.DrawProceduralIndirect(MeshTopology.Points, _argBuffer);
-        Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumLipidInstances);
+        if (SceneManager.Instance.NumLipidInstances > 0 && DisplaySettings.Instance.ShowMembrane)
+        {
+            _renderLipidsMaterial.SetPass(0);
+            Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumLipidInstances);
+        }
 
         // Draw proteins
         if (SceneManager.Instance.NumProteinInstances > 0)
@@ -447,8 +452,11 @@ public class SceneRenderer : MonoBehaviour
         }
         
         // Draw RNA
-        _renderDnaMaterial.SetPass(0);
-        //Graphics.DrawProcedural(MeshTopology.Points, Mathf.Max(SceneManager.Instance.NumDnaSegments - 2, 0)); // Do not draw first and last segments
+        if (SceneManager.Instance.NumDnaSegments > 0 && DisplaySettings.Instance.ShowRNA)
+        {
+            _renderDnaMaterial.SetPass(0);
+            Graphics.DrawProcedural(MeshTopology.Points, Mathf.Max(SceneManager.Instance.NumDnaSegments - 2, 0)); // Do not draw first and last segments
+        }
 
         ComputeHiZMap(depthBuffer);
 

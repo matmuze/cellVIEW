@@ -46,6 +46,7 @@ public class SceneManager : MonoBehaviour
     // Dna data
     public List<Vector4> DnaAtoms = new List<Vector4>();
     public List<Vector4> DnaControlPoints = new List<Vector4>();
+    public List<Vector4> DnaControlPointsNormals = new List<Vector4>();
     
     public int NumProteinInstances
     {
@@ -306,61 +307,84 @@ public class SceneManager : MonoBehaviour
     
     public void LoadRna(List<Vector4> controlPoints)
     {
-        //var normalizedCp = new List<Vector4>();
-        //normalizedCp.Add(controlPoints[0]);
-        //normalizedCp.Add(controlPoints[1]);
+        var normalizedCp = new List<Vector4>();
+        normalizedCp.Add(controlPoints[0]);
+        normalizedCp.Add(controlPoints[1]);
 
-        //var currentPointId = 1;
-        //var currentPosition = controlPoints[currentPointId];
+        var currentPointId = 1;
+        var currentPosition = controlPoints[currentPointId];
 
-        //float distance = DisplaySettings.Instance.DistanceContraint;
-        //float lerpValue = 0.0f;
+        float distance = DisplaySettings.Instance.DistanceContraint;
+        float lerpValue = 0.0f;
 
-        //// Normalize the distance between control points
-        //while (true)
-        //{
-        //    if (currentPointId + 2 >= controlPoints.Count) break;
+        // Normalize the distance between control points
+        while (true)
+        {
+            if (currentPointId + 2 >= controlPoints.Count) break;
+            //if (currentPointId + 2 >= 100) break;
 
-        //    var cp0 = controlPoints[currentPointId - 1];
-        //    var cp1 = controlPoints[currentPointId];
-        //    var cp2 = controlPoints[currentPointId + 1];
-        //    var cp3 = controlPoints[currentPointId + 2];
+            var cp0 = controlPoints[currentPointId - 1];
+            var cp1 = controlPoints[currentPointId];
+            var cp2 = controlPoints[currentPointId + 1];
+            var cp3 = controlPoints[currentPointId + 2];
 
-        //    var found = false;
+            var found = false;
 
-        //    for (; lerpValue <= 1; lerpValue += 0.01f)
-        //    {
-        //        var candidate = Helper.CubicInterpolate(cp0, cp1, cp2, cp3, lerpValue);
-        //        var d = Vector3.Distance(currentPosition, candidate);
+            for (; lerpValue <= 1; lerpValue += 0.01f)
+            {
+                var candidate = Helper.CubicInterpolate(cp0, cp1, cp2, cp3, lerpValue);
+                var d = Vector3.Distance(currentPosition, candidate);
 
-        //        if (d > distance)
-        //        {
-        //            normalizedCp.Add(candidate);
-        //            currentPosition = candidate;
-        //            found = true;
-        //            break;
-        //        }
-        //    }
+                if (d > distance)
+                {
+                    normalizedCp.Add(candidate);
+                    currentPosition = candidate;
+                    found = true;
+                    break;
+                }
+            }
 
-        //    if (!found)
-        //    {
-        //        lerpValue = 0;
-        //        currentPointId++;
-        //    }
-        //}
+            if (!found)
+            {
+                lerpValue = 0;
+                currentPointId++;
+            }
+        }
 
-        //DnaControlPoints.AddRange(normalizedCp);
-        ////DnaControlPoints.AddRange(controlPoints);
+        var cpNormals = new List<Vector4>();
+        var crossDirection = Vector3.up;
 
-        //Debug.Log(normalizedCp.Count);
+        var p0 = normalizedCp[0];
+        var p1 = normalizedCp[1];
+        var p2 = normalizedCp[2];
 
-        ////var bounds = PdbLoader.GetBounds(DnaControlPoints);
-        ////PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+        cpNormals.Add(Vector3.Normalize(Vector3.Cross(p0 - p1, p2 - p1)));
 
-        //var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.GetPdbFilePath("basesingle"));
-        ////var atomBounds = PdbLoader.GetBounds(atoms);
-        ////PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
-        //DnaAtoms.AddRange(atomSpheres);
+        for (int i = 2; i < normalizedCp.Count - 1; i++)
+        {
+            p0 = normalizedCp[i - 1];
+            p1 = normalizedCp[i];
+            p2 = normalizedCp[i + 1];
+
+            var t = Vector3.Normalize(p2 - p0);
+            var b = Vector3.Normalize(Vector3.Cross(t, cpNormals.Last()));
+            var n = -Vector3.Normalize(Vector3.Cross(t, b));
+
+            cpNormals.Add(n);
+        }
+
+        DnaControlPoints.AddRange(normalizedCp);
+        DnaControlPointsNormals.AddRange(cpNormals);
+
+        Debug.Log(normalizedCp.Count);
+
+        //var bounds = PdbLoader.GetBounds(DnaControlPoints);
+        //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+
+        var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_G_Base.pdb");
+        //var atomBounds = PdbLoader.GetBounds(atoms);
+        //PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
+        DnaAtoms.AddRange(atomSpheres);
     }
 
     //--------------------------------------------------------------------------------------
@@ -478,6 +502,7 @@ public class SceneManager : MonoBehaviour
         // Clear dna data
         DnaAtoms.Clear();
         DnaControlPoints.Clear();
+        DnaControlPointsNormals.Clear();
 
         UnitInstancePositions.Clear();
     }
@@ -524,6 +549,7 @@ public class SceneManager : MonoBehaviour
         // Upload Dna data
         ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
         ComputeBufferManager.Instance.DnaControlPoints.SetData(DnaControlPoints.ToArray());
+        ComputeBufferManager.Instance.DnaControlPointsNormals.SetData(DnaControlPointsNormals.ToArray());
     }
     
     public void UploadSceneData()

@@ -38,45 +38,47 @@ public static class PdbLoader
         new Color(255,200,50) / 255       // S        yellow      
     };
 
-    public static string DownloadPdbFile(string pdbName, string dstPath)
+    public static string DownloadPdbFile(string fileName, string dstPath = null)
     {
-        #if UNITY_EDITOR
-
         Debug.Log("Downloading pdb file");
-        var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
+        var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(fileName));
         
+        #if UNITY_EDITOR
         while (!www.isDone)
         {
             EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
         }
         EditorUtility.ClearProgressBar();
+        #endif
 
-        if (!string.IsNullOrEmpty(www.error)) throw new Exception(pdbName + " " + www.error);
+        if (!string.IsNullOrEmpty(www.error)) throw new Exception(fileName + " " + www.error);
 
-        var path = dstPath + pdbName + ".pdb";
+        var path = (string.IsNullOrEmpty(dstPath) ? DefaultPdbDirectory : dstPath) + fileName + ".pdb";
         File.WriteAllText(path, www.text);
 
         return path;
-        #endif
-
-        return null;
     }
 
-    //public static string DownloadRecipeFile(string iName)
-    //{
-    //    Debug.Log("Downloading pdb file");
-    //    var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/recipes/" + iName + ".json");
-    //    //var www = new WWW("http://www.rcsb.org/pdb/download/downloadFile.do?fileFormat=pdb&compression=NO&structureId=" + WWW.EscapeURL(pdbName));
-    //    while (!www.isDone)
-    //    {
-    //        EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
-    //    }
-    //    EditorUtility.ClearProgressBar();
-    //    if (!string.IsNullOrEmpty(www.error)) throw new Exception(www.error);
-    //    var path = _defaultPdbDirectory + iName + ".json";
-    //    File.WriteAllText(path, www.text);
-    //    return path;
-    //}
+    public static string DownloadRecipeFile(string fileName, string dstPath = null)
+    {
+        Debug.Log("Downloading recipe file");
+        var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/recipes/" + fileName + ".json");
+        
+        #if UNITY_EDITOR
+        while (!www.isDone)
+        {
+            EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
+        }
+        EditorUtility.ClearProgressBar();
+        #endif
+
+        if (!string.IsNullOrEmpty(www.error)) throw new Exception(fileName + " " + www.error);
+
+        var path = (string.IsNullOrEmpty(dstPath) ? DefaultPdbDirectory : dstPath) + fileName + ".json";
+        File.WriteAllText(path, www.text);
+        
+        return path;
+    }
 
     public static Bounds GetBounds(List<Vector4> atoms)
     {

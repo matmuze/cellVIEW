@@ -261,7 +261,7 @@ public static class Helper
     //int i indice of name
     //float x y z 
     //float x y z w
-    public static JSONNode parseJson(string filePath)
+    public static JSONNode ParseJson(string filePath)
     {
         //JSONNode.Parse (filestring);
         //StreamReader inp_stm = new StreamReader(file_path);
@@ -269,19 +269,6 @@ public static class Helper
         var sourse = new StreamReader(filePath);
         var fileContents = sourse.ReadToEnd();
         var data = JSONNode.Parse(fileContents);
-        return data;
-    }
-
-    public static Dictionary<string, object> parseJson2(string filePath)
-    {
-        //JSONNode.Parse (filestring);
-        //StreamReader inp_stm = new StreamReader(file_path);
-        //return JSONNode.LoadFromFile (filePath);
-        var sourse = new StreamReader(filePath);
-        var fileContents = sourse.ReadToEnd();
-
-        var data = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(fileContents);
-        Debug.Log(fileContents);
         return data;
     }
 

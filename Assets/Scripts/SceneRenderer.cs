@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using Renderer = UnityEngine.Renderer;
 
 [ExecuteInEditMode]
 public class SceneRenderer : MonoBehaviour
@@ -23,13 +24,15 @@ public class SceneRenderer : MonoBehaviour
     public ComputeShader OcclusionCullingCS;
     public ComputeShader ReadPixelCS;
 
+    public RenderTexture MicroscopyTexture;
+
     /*****/
 
     private Material _contourMaterial;
     private Material _compositeMaterial;
     private Material _renderDnaMaterial;
     private Material _renderLipidsMaterial;
-    private Material _renderProteinsMaterial;
+    public Material RenderProteinsMaterial;
 
     /*****/
 
@@ -52,7 +55,7 @@ public class SceneRenderer : MonoBehaviour
         _camera.depthTextureMode |= DepthTextureMode.Depth;
         _camera.depthTextureMode |= DepthTextureMode.DepthNormals;
 
-        if (_renderProteinsMaterial == null) _renderProteinsMaterial = new Material(RenderProteinsShader) { hideFlags = HideFlags.HideAndDontSave };
+        if (RenderProteinsMaterial == null) RenderProteinsMaterial = new Material(RenderProteinsShader) { hideFlags = HideFlags.HideAndDontSave };
         if (_renderLipidsMaterial == null) _renderLipidsMaterial = new Material(RenderLipidsShader) { hideFlags = HideFlags.HideAndDontSave };
         if (_renderDnaMaterial == null) _renderDnaMaterial = new Material(RenderDnaShader) { hideFlags = HideFlags.HideAndDontSave };
         if (_compositeMaterial == null) _compositeMaterial = new Material(CompositeShader) { hideFlags = HideFlags.HideAndDontSave };
@@ -67,7 +70,7 @@ public class SceneRenderer : MonoBehaviour
 
     void OnDisable()
     {
-        if (_renderProteinsMaterial != null) DestroyImmediate(_renderProteinsMaterial);
+        if (RenderProteinsMaterial != null) DestroyImmediate(RenderProteinsMaterial);
         if (_renderLipidsMaterial != null) DestroyImmediate(_renderLipidsMaterial);
         if (_renderDnaMaterial != null) DestroyImmediate(_renderDnaMaterial);
         if (_compositeMaterial != null) DestroyImmediate(_compositeMaterial);
@@ -105,25 +108,27 @@ public class SceneRenderer : MonoBehaviour
         _contourMaterial.SetFloat("_ContourStrength", DisplaySettings.Instance.ContourStrength);
 
         // Protein params
-        _renderProteinsMaterial.SetInt("_EnableLod", Convert.ToInt32(DisplaySettings.Instance.EnableLod));
-        _renderProteinsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
-        _renderProteinsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
-        _renderProteinsMaterial.SetVector("_CameraForward", _camera.transform.forward);
-        _renderProteinsMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
 
-        _renderProteinsMaterial.SetBuffer("_ProteinInstanceInfo", ComputeBufferManager.Instance.ProteinInstanceInfos);
-        _renderProteinsMaterial.SetBuffer("_ProteinInstancePositions",
+        RenderProteinsMaterial.SetInt("_EnableLod", Convert.ToInt32(DisplaySettings.Instance.EnableLod));
+        RenderProteinsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+        RenderProteinsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
+        RenderProteinsMaterial.SetVector("_CameraForward", _camera.transform.forward);
+        RenderProteinsMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
+        RenderProteinsMaterial.SetBuffer("_ProteinVisibilityFlag", ComputeBufferManager.Instance.ProteinVisibilityFlags);
+
+        RenderProteinsMaterial.SetBuffer("_ProteinInstanceInfo", ComputeBufferManager.Instance.ProteinInstanceInfos);
+        RenderProteinsMaterial.SetBuffer("_ProteinInstancePositions",
             (DisplaySettings.Instance.EnableBrownianMotion) ?
             ComputeBufferManager.Instance.InstanceDisplayPositions : ComputeBufferManager.Instance.ProteinInstancePositions);
 
-        _renderProteinsMaterial.SetBuffer("_ProteinInstanceRotations",
+        RenderProteinsMaterial.SetBuffer("_ProteinInstanceRotations",
             (DisplaySettings.Instance.EnableBrownianMotion) ?
             ComputeBufferManager.Instance.InstanceDisplayRotations : ComputeBufferManager.Instance.ProteinInstanceRotations);
 
-        _renderProteinsMaterial.SetBuffer("_IngredientColors", ComputeBufferManager.Instance.ProteinColors);
-        _renderProteinsMaterial.SetBuffer("_ProteinAtomPositions", ComputeBufferManager.Instance.ProteinAtomPositions);
-        _renderProteinsMaterial.SetBuffer("_ProteinClusterPositions", ComputeBufferManager.Instance.ProteinClusterPositions);
-        _renderProteinsMaterial.SetBuffer("_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
+        RenderProteinsMaterial.SetBuffer("_IngredientColors", ComputeBufferManager.Instance.ProteinColors);
+        RenderProteinsMaterial.SetBuffer("_ProteinAtomPositions", ComputeBufferManager.Instance.ProteinAtomPositions);
+        RenderProteinsMaterial.SetBuffer("_ProteinClusterPositions", ComputeBufferManager.Instance.ProteinClusterPositions);
+        RenderProteinsMaterial.SetBuffer("_ProteinSphereBatchInfos", ComputeBufferManager.Instance.ProteinSphereBatchInfos);
 
         // Lipid params
         _renderLipidsMaterial.SetInt("_EnableCrossSection", Convert.ToInt32(DisplaySettings.Instance.EnableCrossSection));
@@ -447,7 +452,7 @@ public class SceneRenderer : MonoBehaviour
         // Draw proteins
         if (SceneManager.Instance.NumProteinInstances > 0)
         {
-            _renderProteinsMaterial.SetPass(0);
+            RenderProteinsMaterial.SetPass(0);
             Graphics.DrawProceduralIndirect(MeshTopology.Points, _argBuffer);
         }
         

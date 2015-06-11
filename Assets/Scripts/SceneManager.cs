@@ -550,6 +550,9 @@ public class SceneManager : MonoBehaviour
         ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
         ComputeBufferManager.Instance.DnaControlPoints.SetData(DnaControlPoints.ToArray());
         ComputeBufferManager.Instance.DnaControlPointsNormals.SetData(DnaControlPointsNormals.ToArray());
+
+        // Make sure that the renderer has been created
+        //var a = Renderer.Instance;
     }
     
     public void UploadSceneData()

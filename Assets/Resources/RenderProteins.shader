@@ -153,7 +153,83 @@ Shader "Custom/RenderProteins"
 	}
 	
 	//--------------------------------------------------------------------------------------
+	
+	uniform	StructuredBuffer<int> _ProteinVisibilityFlag;
+
+	struct gs_input
+	{	
+		float radius : FLOAT0;			
+		float3 color : FLOAT30;	
+		float3 position : FLOAT31;		
+	};
+
+	struct fs_input
+	{	
+		float2 uv: TEXCOORD0;	
+		float3 color : FLOAT30;			
+		float4 position : SV_Position;	
+	};
+
+	void vs_fluo(uint id : SV_VertexID, out gs_input output)
+	{		
+		float4 infos = _ProteinInstanceInfo[id];		
+		float4 position = _ProteinInstancePositions[id];
 		
+		//output.id = id;
+		//output.type = infos.x;	
+		//output.state = infos.y;	
+		//output.color = _IngredientColors[infos.x]; 
+		//output.pos = position.xyz * _Scale;
+		//output.radius = 25 * _Scale;//position.w * _Scale;	
+		
+		bool visible = _ProteinVisibilityFlag[infos.x] == 0;
+
+		output.color = _IngredientColors[infos.x]; 
+		output.radius = (visible) ? 0 : position.w * _Scale;
+		output.position = position.xyz * _Scale;
+	}	
+		
+	[maxvertexcount(3)]
+	void gs_fluo(point gs_input input[1], inout TriangleStream<fs_input> triangleStream)
+	{	
+		if( input[0].radius <= 0 ) return;
+		
+		float4 viewPos = mul(UNITY_MATRIX_MV, float4(input[0].position, 1));
+		viewPos -= normalize( viewPos ) * input[0].radius;
+		float4 projPos = mul(UNITY_MATRIX_P, float4(viewPos.xyz, 1));
+		float4 cornerPos = mul(UNITY_MATRIX_P, float4(input[0].radius, input[0].radius, 0, 0));
+
+		fs_input output;		
+		output.color = input[0].color;	
+
+		//*****//
+		
+		float triBase = 3.464;
+		float triHeigth = 3;
+		float triBaseHalf = triBase * 0.5;
+		float2 triOffset = float2(triBaseHalf, 1.0);
+
+		output.uv = float2(0, 0) - triOffset;
+		output.position = projPos + float4(output.uv * cornerPos.xy, 0, 0);
+		triangleStream.Append(output);
+
+		output.uv = float2(triBaseHalf, triHeigth) - triOffset;
+		output.position = projPos + float4(output.uv * cornerPos.xy, 0, 0);
+		triangleStream.Append(output);	
+								
+		output.uv = float2(triBase,0) - triOffset;
+		output.position = projPos + float4(output.uv * cornerPos.xy, 0, 0);
+		triangleStream.Append(output);
+	}
+
+	void fs_fluo(fs_input input, out float4 color : COLOR0) 
+	{					
+		float lensqr = dot(input.uv, input.uv);   
+		if(lensqr > 1) discard;
+
+		color = float4(input.color,  pow(1-lensqr, 4));				
+	}
+
 	ENDCG
 
 	SubShader 
@@ -175,6 +251,25 @@ Shader "Custom/RenderProteins"
 			#pragma domain ds_protein				
 			#pragma geometry gs_protein			
 			#pragma fragment fs_protein
+						
+			ENDCG
+		}	
+
+		Pass 
+	    {
+			ZWrite Off // don't write to depth buffer 
+			Blend SrcAlpha One // Soft Additive
+
+	    	CGPROGRAM			
+	    		
+			#include "UnityCG.cginc"
+			
+			#pragma only_renderers d3d11
+			#pragma target 5.0				
+			
+			#pragma vertex vs_fluo		
+			#pragma geometry gs_fluo				
+			#pragma fragment fs_fluo	
 						
 			ENDCG
 		}	

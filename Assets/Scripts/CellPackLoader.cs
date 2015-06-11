@@ -214,7 +214,7 @@ public static class CellPackLoader
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
         if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
 
-        var resultData = Helper.parseJson(cellPackSceneJsonPath);
+        var resultData = Helper.ParseJson(cellPackSceneJsonPath);
 
         //we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
         //the recipe is optional as it will gave more information than just the result file.
@@ -262,8 +262,8 @@ public static class CellPackLoader
     public static void LoadScene()
     {
         LoadRecipe();
-        LoadMembrane();
-        LoadRna();
+        //LoadMembrane();
+        //LoadRna();
         
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();

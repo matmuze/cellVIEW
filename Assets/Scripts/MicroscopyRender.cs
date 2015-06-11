@@ -68,6 +68,7 @@ public class MicroscopyRender : MonoBehaviour
         // Render shadow map
         Graphics.SetRenderTarget(MicroscopyTexture);
         _renderProteinsMaterial.SetPass(1);
+        
         Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumProteinInstances);
     }
 }

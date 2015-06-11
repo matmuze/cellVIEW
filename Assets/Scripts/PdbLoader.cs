@@ -13,6 +13,9 @@ public static class PdbLoader
 {
     public static float[] AtomRadii = { 1.548f, 1.100f, 1.400f, 1.348f, 1.880f, 1.808f };
     public static string[] AtomSymbols = { "C", "H", "N", "O", "P", "S" };
+    public static float[] FluoColors = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 1,1,0,0 };
+
+
     public static string DefaultPdbDirectory = Application.dataPath + "/../Data/Default/";
 
     public struct Atom

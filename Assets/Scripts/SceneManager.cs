@@ -564,7 +564,24 @@ public class SceneManager : MonoBehaviour
 
     public void UploadIngredientToggleData()
     {
+        var fluoFlags = new List<int>();
+
+        int fluoCount = 0;
+        foreach (var flag in IngredientToggleFlags)
+        {
+            if (flag == 1 && fluoCount < 4)
+            {
+                fluoCount++;
+                fluoFlags.Add(fluoCount);
+            }
+            else
+            {
+                fluoFlags.Add(0);
+            }
+        }
+
         ComputeBufferManager.Instance.ProteinVisibilityFlags.SetData(IngredientToggleFlags.ToArray());
+        ComputeBufferManager.Instance.ProteinFluorescenceFlags.SetData(fluoFlags.ToArray());
     }  
 
 }

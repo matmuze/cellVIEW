@@ -49,6 +49,7 @@ public class ComputeBufferManager : MonoBehaviour
     
     public ComputeBuffer ProteinColors;
     public ComputeBuffer ProteinVisibilityFlags;
+    public ComputeBuffer ProteinFluorescenceFlags;
 
     public ComputeBuffer ProteinAtomPositions;
     public ComputeBuffer ProteinClusterPositions;
@@ -143,6 +144,7 @@ public class ComputeBufferManager : MonoBehaviour
         // Ingredient data
         if (ProteinColors == null) ProteinColors = new ComputeBuffer(NumIngredientsMax, 16);
         if (ProteinVisibilityFlags == null) ProteinVisibilityFlags = new ComputeBuffer(NumIngredientsMax, 4);
+        if (ProteinFluorescenceFlags == null) ProteinFluorescenceFlags = new ComputeBuffer(NumIngredientsMax, 4);
 
         // Atom data
         if (ProteinAtomPositions == null) ProteinAtomPositions = new ComputeBuffer(NumProteinAtomMax, 16);
@@ -180,6 +182,7 @@ public class ComputeBufferManager : MonoBehaviour
 	    
         if (ProteinColors != null) { ProteinColors.Release(); ProteinColors = null; }
 	    if (ProteinVisibilityFlags != null) { ProteinVisibilityFlags.Release(); ProteinVisibilityFlags = null; }
+        if (ProteinFluorescenceFlags != null) { ProteinFluorescenceFlags.Release(); ProteinFluorescenceFlags = null; }
         if (ProteinSphereBatchInfos != null) { ProteinSphereBatchInfos.Release(); ProteinSphereBatchInfos = null; }
         if (ProteinAtomPositions != null) { ProteinAtomPositions.Release(); ProteinAtomPositions = null; }
 	    if (ProteinAtomCount != null) { ProteinAtomCount.Release(); ProteinAtomCount = null; }

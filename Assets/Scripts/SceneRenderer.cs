@@ -108,13 +108,14 @@ public class SceneRenderer : MonoBehaviour
         _contourMaterial.SetFloat("_ContourStrength", DisplaySettings.Instance.ContourStrength);
 
         // Protein params
-
         RenderProteinsMaterial.SetInt("_EnableLod", Convert.ToInt32(DisplaySettings.Instance.EnableLod));
         RenderProteinsMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
         RenderProteinsMaterial.SetFloat("_FirstLevelBeingRange", DisplaySettings.Instance.FirstLevelOffset);
         RenderProteinsMaterial.SetVector("_CameraForward", _camera.transform.forward);
         RenderProteinsMaterial.SetMatrix("_LodLevelsInfos", Helper.FloatArrayToMatrix4X4(DisplaySettings.Instance.LodLevels));
+        RenderProteinsMaterial.SetMatrix("_FluorescenceColors", Helper.FloatArrayToMatrix4X4(PdbLoader.FluoColors));
         RenderProteinsMaterial.SetBuffer("_ProteinVisibilityFlag", ComputeBufferManager.Instance.ProteinVisibilityFlags);
+        RenderProteinsMaterial.SetBuffer("_ProteinFluorescenceFlags", ComputeBufferManager.Instance.ProteinFluorescenceFlags);
 
         RenderProteinsMaterial.SetBuffer("_ProteinInstanceInfo", ComputeBufferManager.Instance.ProteinInstanceInfos);
         RenderProteinsMaterial.SetBuffer("_ProteinInstancePositions",

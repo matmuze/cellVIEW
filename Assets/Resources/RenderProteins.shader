@@ -155,6 +155,8 @@ Shader "Custom/RenderProteins"
 	//--------------------------------------------------------------------------------------
 	
 	uniform	StructuredBuffer<int> _ProteinVisibilityFlag;
+	uniform	StructuredBuffer<int> _ProteinFluorescenceFlags;
+	uniform	float4x4 _FluorescenceColors;
 
 	struct gs_input
 	{	
@@ -182,10 +184,11 @@ Shader "Custom/RenderProteins"
 		//output.pos = position.xyz * _Scale;
 		//output.radius = 25 * _Scale;//position.w * _Scale;	
 		
-		bool visible = _ProteinVisibilityFlag[infos.x] == 0;
-
-		output.color = _IngredientColors[infos.x]; 
-		output.radius = (visible) ? 0 : position.w * _Scale;
+		int fluoId = _ProteinFluorescenceFlags[infos.x];
+		//bool visible = _ProteinVisibilityFlag[infos.x] == 0;
+		
+		output.color = _FluorescenceColors[fluoId-1].xyz; 
+		output.radius = (fluoId == 0) ? 0 : position.w * _Scale;
 		output.position = position.xyz * _Scale;
 	}	
 		

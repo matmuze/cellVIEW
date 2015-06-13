@@ -116,7 +116,7 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.NumStepsPerSegment = EditorGUILayout.IntField("Num Steps Per Segment", DisplaySettings.Instance.NumStepsPerSegment);
 
                     DisplaySettings.Instance.EnableTwist = EditorGUILayout.Toggle("Enable Twist", DisplaySettings.Instance.EnableTwist);
-                    DisplaySettings.Instance.TwistFactor = EditorGUILayout.Slider("Twist Factor", DisplaySettings.Instance.TwistFactor, 0.01f, 100);
+                    DisplaySettings.Instance.TwistFactor = EditorGUILayout.Slider("Twist Factor", DisplaySettings.Instance.TwistFactor, 0.0f, 100);
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
 

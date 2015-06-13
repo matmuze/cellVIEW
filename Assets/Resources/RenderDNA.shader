@@ -67,11 +67,12 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.pos3 = pos3;
 	
 	output.segmentId = id.x;
-	output.numSteps = numSteps;/*
+	output.numSteps = numSteps;
+	
 	output.localSphereCount = 1;
-	output.radiusScale = 2;*/
+	output.radiusScale = 2;
 
-	output.localSphereCount = 10;
+	output.localSphereCount = 41;
 	output.radiusScale = 1;
 
 	output.globalSphereCount = numSteps * output.localSphereCount;
@@ -249,7 +250,7 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	// Do helix rotation of the binormal arround the tangent
 	float angleStep = _TwistFactor * (3.14 / 180);
 	float angleStart = op[0].segmentId * op[0].numSteps * angleStep;
-	float rotationAngle = angleStart + stepId * angleStep; 
+	float rotationAngle = stepId * angleStep; 
 	float4 q = QuaternionFromAxisAngle(tangent, (_EnableTwist == 1) ? rotationAngle : 0 );		
 	
 	normal = QuaternionTransform(q, normal);	
@@ -276,10 +277,10 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	float3 sphereCenter = sphere.xyz;		
 	
 	//sphereCenter.xyz *= 0;
-
-	sphereCenter.xyz = from * atomId /  op[0].localSphereCount * 6;
-	sphereCenter.xyz = QuaternionTransform(quat, sphereCenter.xyz);
-	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
+	//sphereCenter = from * atomId /  op[0].localSphereCount * 6;
+	
+	sphereCenter = QuaternionTransform(quat, sphereCenter.xyz);
+	sphereCenter = QuaternionTransform(quat2, sphereCenter.xyz);
 	
 	//sphereCenter.xyz = normal * atomId /  op[0].localSphereCount * 8;
 
@@ -304,7 +305,10 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	//}
 
 	output.position = baseCenter * _Scale + sphereCenter * _Scale; 
-	output.radius = sphere.w * op[0].radiusScale * _Scale; // Discard unwanted spheres	
+	//output.radius =; // Discard unwanted spheres	
+
+	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphere.w * op[0].radiusScale * _Scale; // Discard unwanted spheres	
+
 	//output.color = float3(1, midStepLerp, ((float)atomId / 41.0f));	// Debug colors		
 	output.color = float3(1,0, 0);	// Debug colors		
 	output.id = op[0].segmentId * op[0].numSteps + stepId;

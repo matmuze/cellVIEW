@@ -372,7 +372,7 @@ public class SceneManager : MonoBehaviour
 
             cpNormals.Add(n);
         }
-
+        
         DnaControlPoints.AddRange(normalizedCp);
         DnaControlPointsNormals.AddRange(cpNormals);
 
@@ -381,7 +381,7 @@ public class SceneManager : MonoBehaviour
         //var bounds = PdbLoader.GetBounds(DnaControlPoints);
         //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
 
-        var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_G_Base.pdb");
+        var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
         //var atomBounds = PdbLoader.GetBounds(atoms);
         //PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
         DnaAtoms.AddRange(atomSpheres);

@@ -230,7 +230,7 @@ Shader "Custom/RenderProteins"
 		float lensqr = dot(input.uv, input.uv);   
 		if(lensqr > 1) discard;
 
-		color = float4(input.color,  pow(1-lensqr, 4));				
+		color = float4(input.color,  0.1);				
 	}
 
 	ENDCG
@@ -262,6 +262,7 @@ Shader "Custom/RenderProteins"
 	    {
 			ZWrite Off // don't write to depth buffer 
 			Blend SrcAlpha One // Soft Additive
+			//Blend OneMinusDstColor One // Soft Additive
 
 	    	CGPROGRAM			
 	    		

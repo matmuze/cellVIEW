@@ -406,7 +406,7 @@ public class SceneRenderer : MonoBehaviour
 
         ComputeCrossSection();
         ComputeFrustrumCulling();
-        ComputeOcclusionCulling(false); // Do pre-render occlusion test
+        //ComputeOcclusionCulling(false); // Do pre-render occlusion test
 
         if (SceneManager.Instance.NumProteinInstances > 0)
         {

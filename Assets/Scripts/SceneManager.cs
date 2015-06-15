@@ -45,7 +45,7 @@ public class SceneManager : MonoBehaviour
 
     // Dna data
     public List<Vector4> DnaAtoms = new List<Vector4>();
-    public List<Vector4> DnaControlPoints = new List<Vector4>();
+    public List<Vector4> DnaControlPointsPositions = new List<Vector4>();
     public List<Vector4> DnaControlPointsNormals = new List<Vector4>();
     
     public int NumProteinInstances
@@ -60,12 +60,12 @@ public class SceneManager : MonoBehaviour
 
     public int NumDnaControlPoints
     {
-        get { return DnaControlPoints.Count; }
+        get { return DnaControlPointsPositions.Count; }
     }
 
     public int NumDnaSegments
     {
-        get { return Math.Max(DnaControlPoints.Count - 1, 0); }
+        get { return Math.Max(DnaControlPointsPositions.Count - 1, 0); }
     }
     
     public int NumLodLevels = 0;
@@ -304,12 +304,18 @@ public class SceneManager : MonoBehaviour
 
     //    UnitAtomCount += LipidAtomPositions.Count;
     //}
-    
-    public void LoadRna(List<Vector4> controlPoints)
+
+    public void AddNucleicAcids()
     {
-        var normalizedCp = new List<Vector4>();
-        normalizedCp.Add(controlPoints[0]);
-        normalizedCp.Add(controlPoints[1]);
+        var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
+        DnaAtoms.AddRange(atomSpheres);
+    }
+
+    private List<Vector4> NormalizeControlPoints(List<Vector4> controlPoints)
+    {
+        var normalizedControlPoints = new List<Vector4>();
+        normalizedControlPoints.Add(controlPoints[0]);
+        normalizedControlPoints.Add(controlPoints[1]);
 
         var currentPointId = 1;
         var currentPosition = controlPoints[currentPointId];
@@ -337,7 +343,7 @@ public class SceneManager : MonoBehaviour
 
                 if (d > distance)
                 {
-                    normalizedCp.Add(candidate);
+                    normalizedControlPoints.Add(candidate);
                     currentPosition = candidate;
                     found = true;
                     break;
@@ -351,40 +357,52 @@ public class SceneManager : MonoBehaviour
             }
         }
 
-        var cpNormals = new List<Vector4>();
+        return normalizedControlPoints;
+    }
+
+    public List<Vector4> GetSmoothNormals(List<Vector4> controlPoints)
+    {
+        var smoothNormals = new List<Vector4>();
         var crossDirection = Vector3.up;
 
-        var p0 = normalizedCp[0];
-        var p1 = normalizedCp[1];
-        var p2 = normalizedCp[2];
+        var p0 = controlPoints[0];
+        var p1 = controlPoints[1];
+        var p2 = controlPoints[2];
 
-        cpNormals.Add(Vector3.Normalize(Vector3.Cross(p0 - p1, p2 - p1)));
+        smoothNormals.Add(Vector3.Normalize(Vector3.Cross(p0 - p1, p2 - p1)));
 
-        for (int i = 2; i < normalizedCp.Count - 1; i++)
+        for (int i = 2; i < controlPoints.Count - 1; i++)
         {
-            p0 = normalizedCp[i - 1];
-            p1 = normalizedCp[i];
-            p2 = normalizedCp[i + 1];
+            p0 = controlPoints[i - 1];
+            p1 = controlPoints[i];
+            p2 = controlPoints[i + 1];
 
             var t = Vector3.Normalize(p2 - p0);
-            var b = Vector3.Normalize(Vector3.Cross(t, cpNormals.Last()));
+            var b = Vector3.Normalize(Vector3.Cross(t, smoothNormals.Last()));
             var n = -Vector3.Normalize(Vector3.Cross(t, b));
 
-            cpNormals.Add(n);
+            smoothNormals.Add(n);
+        }
+
+        return smoothNormals;
+    }
+
+    public void AddDNAPath(List<Vector4> path)
+    {
+        var controlPoints = NormalizeControlPoints(path);
+        var normals = GetSmoothNormals(controlPoints);
+
+        for (int i = 0; i < controlPoints.Count; i++)
+        {
+            //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
+            var stopFlag = DnaControlPointsPositions.Count;
+            controlPoints[i] = new Vector4(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z, stopFlag);
         }
         
-        DnaControlPoints.AddRange(normalizedCp);
-        DnaControlPointsNormals.AddRange(cpNormals);
+        DnaControlPointsNormals.AddRange(normals);
+        DnaControlPointsPositions.AddRange(controlPoints);
 
-        Debug.Log(normalizedCp.Count);
-
-        //var bounds = PdbLoader.GetBounds(DnaControlPoints);
-        //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
-
-        var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
-        //var atomBounds = PdbLoader.GetBounds(atoms);
-        //PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
-        DnaAtoms.AddRange(atomSpheres);
+        Debug.Log(controlPoints.Count);
     }
 
     //--------------------------------------------------------------------------------------
@@ -501,7 +519,7 @@ public class SceneManager : MonoBehaviour
 
         // Clear dna data
         DnaAtoms.Clear();
-        DnaControlPoints.Clear();
+        DnaControlPointsPositions.Clear();
         DnaControlPointsNormals.Clear();
 
         UnitInstancePositions.Clear();
@@ -518,7 +536,7 @@ public class SceneManager : MonoBehaviour
         ComputeBufferManager.Instance.NumLipidAtomMax = LipidAtomPositions.Count + 1;
         ComputeBufferManager.Instance.NumLipidInstancesMax = LipidInstancePositions.Count + 1;
         ComputeBufferManager.Instance.NumDnaAtomsMax = DnaAtoms.Count + 1;
-        ComputeBufferManager.Instance.NumDnaControlPointsMax = DnaControlPoints.Count + 1;
+        ComputeBufferManager.Instance.NumDnaControlPointsMax = DnaControlPointsPositions.Count + 1;
         
         ComputeBufferManager.Instance.InitBuffers();
 
@@ -548,7 +566,7 @@ public class SceneManager : MonoBehaviour
 
         // Upload Dna data
         ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
-        ComputeBufferManager.Instance.DnaControlPoints.SetData(DnaControlPoints.ToArray());
+        ComputeBufferManager.Instance.DnaControlPointsPositions.SetData(DnaControlPointsPositions.ToArray());
         ComputeBufferManager.Instance.DnaControlPointsNormals.SetData(DnaControlPointsNormals.ToArray());
 
         // Make sure that the renderer has been created

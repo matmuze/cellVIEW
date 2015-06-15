@@ -66,7 +66,7 @@ public class ComputeBufferManager : MonoBehaviour
     public ComputeBuffer LipidInstanceCullFlags;
 
     public ComputeBuffer DnaAtoms;
-    public ComputeBuffer DnaControlPoints;
+    public ComputeBuffer DnaControlPointsPositions;
     public ComputeBuffer DnaControlPointsNormals;
 
     //*****//
@@ -164,7 +164,7 @@ public class ComputeBufferManager : MonoBehaviour
 
         // Dna data
         if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(NumDnaAtomsMax, 16);
-        if (DnaControlPoints == null) DnaControlPoints = new ComputeBuffer(NumDnaControlPointsMax, 16);
+        if (DnaControlPointsPositions == null) DnaControlPointsPositions = new ComputeBuffer(NumDnaControlPointsMax, 16);
         if (DnaControlPointsNormals == null) DnaControlPointsNormals = new ComputeBuffer(NumDnaControlPointsMax, 16);
 	}
 	
@@ -197,7 +197,7 @@ public class ComputeBufferManager : MonoBehaviour
         if (LipidInstanceCullFlags != null) { LipidInstanceCullFlags.Release(); LipidInstanceCullFlags = null; }
 
         if (DnaAtoms != null) { DnaAtoms.Release(); DnaAtoms = null; }
-        if (DnaControlPoints != null) { DnaControlPoints.Release(); DnaControlPoints = null; }
+        if (DnaControlPointsPositions != null) { DnaControlPointsPositions.Release(); DnaControlPointsPositions = null; }
         if (DnaControlPointsNormals != null) { DnaControlPointsNormals.Release(); DnaControlPointsNormals = null; }
 	}
 }

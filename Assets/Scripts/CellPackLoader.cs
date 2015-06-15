@@ -256,7 +256,8 @@ public static class CellPackLoader
             controlPoints.Add(new Vector4(-x, y, z, 1));
         }
 
-        SceneManager.Instance.LoadRna(controlPoints);
+        SceneManager.Instance.AddDNAPath(controlPoints);
+        SceneManager.Instance.AddNucleicAcids();
     }
 
     public static void LoadScene()

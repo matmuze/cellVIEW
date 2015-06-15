@@ -53,18 +53,20 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	float linearStepSize = 0.5f / numSteps;	
 	float stepLength = _SegmentLength / (float)numSteps;
 
-	float3 pos0 = _DnaControlPoints[id].xyz; // We skip the first segment
-	float3 pos1 = _DnaControlPoints[id + 1].xyz;
-	float3 pos2 = _DnaControlPoints[id + 2].xyz;
-	float3 pos3 = _DnaControlPoints[id + 3].xyz;
+	float4 pos0 = _DnaControlPoints[id]; // We skip the first segment
+	float4 pos1 = _DnaControlPoints[id + 1];
+	float4 pos2 = _DnaControlPoints[id + 2];
+	float4 pos3 = _DnaControlPoints[id + 3];
 
 	output.n1 = _DnaControlPointsNormals[id].xyz;
 	output.n2 = _DnaControlPointsNormals[id + 1].xyz;
 
-	output.pos0 = pos0;
-	output.pos1 = pos1;
-	output.pos2 = pos2;
-	output.pos3 = pos3;
+	bool skipSegment = pos0.w != pos1.w || pos1.w != pos2.w || pos2.w != pos3.w;
+
+	output.pos0 = pos0.xyz;
+	output.pos1 = pos1.xyz;
+	output.pos2 = pos2.xyz;
+	output.pos3 = pos3.xyz;
 	
 	output.segmentId = id.x;
 	output.numSteps = numSteps;
@@ -72,7 +74,7 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.localSphereCount = 1;
 	output.radiusScale = 2;
 
-	output.localSphereCount = 41;
+	output.localSphereCount = skipSegment ? 0 : 41;
 	output.radiusScale = 1;
 
 	output.globalSphereCount = numSteps * output.localSphereCount;
@@ -248,7 +250,7 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	//normal = normalize(cross(tangent, binormal));
 
 	// Do helix rotation of the binormal arround the tangent
-	float angleStep = _TwistFactor * (3.14 / 180);
+	float angleStep = -_TwistFactor * (3.14 / 180);
 	float angleStart = op[0].segmentId * op[0].numSteps * angleStep;
 	float rotationAngle = stepId * angleStep; 
 	float4 q = QuaternionFromAxisAngle(tangent, (_EnableTwist == 1) ? rotationAngle : 0 );		

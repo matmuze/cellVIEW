@@ -19,17 +19,19 @@ void CSDistanceConstraint (uint3 id : SV_DispatchThreadID)
 
 	float distanceMax = _DistanceMax;
 
-	float3 pos0 = _DnaControlPoints[id0].xyz;
-	float3 pos1 = _DnaControlPoints[id1].xyz;
+	float4 pos0 = _DnaControlPoints[id0];
+	float4 pos1 = _DnaControlPoints[id1];
 
-	float3 diff = pos0 - pos1;
+	if(pos0.w != pos1.w) return;
+
+	float3 diff = pos0.xyz - pos1.xyz;
 	float3 dir = normalize(diff);
-	float delta = (distanceMax - length(diff)) * 0.1;
+	float delta = (distanceMax - length(diff)) * 0.5;
 	
 	float3 delta_p = delta * dir;
 
-    _DnaControlPoints[id0].xyz = pos0 + delta_p;
-	_DnaControlPoints[id1].xyz = pos1 - delta_p;
+    _DnaControlPoints[id0].xyz = pos0.xyz + delta_p;
+	_DnaControlPoints[id1].xyz = pos1.xyz - delta_p;
 }
 
 #pragma kernel CsBendingConstraint
@@ -47,17 +49,19 @@ void CsBendingConstraint (uint3 id : SV_DispatchThreadID)
 
 	float distanceMin = _DistanceMin;
 
-	float3 pos0 = _DnaControlPoints[id0].xyz;
-	float3 pos1 = _DnaControlPoints[id1].xyz;
+	float4 pos0 = _DnaControlPoints[id0];
+	float4 pos1 = _DnaControlPoints[id1];
 
-	float3 diff = pos0 - pos1;
+	if(pos0.w != pos1.w) return;
+
+	float3 diff = pos0.xyz - pos1.xyz;
 	float3 dir = normalize(diff);
 	float delta = max((distanceMin - length(diff)), 0) * 0.5;
 	
 	float3 delta_p = delta * dir;
 
-    _DnaControlPoints[id0].xyz = pos0 + delta_p;
-	_DnaControlPoints[id1].xyz = pos1 - delta_p;
+    _DnaControlPoints[id0].xyz = pos0.xyz + delta_p;
+	_DnaControlPoints[id1].xyz = pos1.xyz - delta_p;
 }
 
 //float4 QuaternionFromAxisAngle(float3 axis, float angle)

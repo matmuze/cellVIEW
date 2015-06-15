@@ -394,8 +394,9 @@ public class SceneManager : MonoBehaviour
 
         for (int i = 0; i < controlPoints.Count; i++)
         {
-            //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
             var stopFlag = DnaControlPointsPositions.Count;
+            //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
+            
             controlPoints[i] = new Vector4(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z, stopFlag);
         }
         

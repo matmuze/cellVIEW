@@ -305,9 +305,9 @@ public class SceneManager : MonoBehaviour
     //    UnitAtomCount += LipidAtomPositions.Count;
     //}
 
-    public void AddNucleicAcids()
+	public void AddNucleicAcids(List<Vector4> atomSpheres)
     {
-        var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
+		if (atomSpheres == null) atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
         DnaAtoms.AddRange(atomSpheres);
     }
 
@@ -394,7 +394,8 @@ public class SceneManager : MonoBehaviour
 
         for (int i = 0; i < controlPoints.Count; i++)
         {
-            var stopFlag = DnaControlPointsPositions.Count;
+            //var stopFlag = DnaControlPointsPositions.Count;
+			var stopFlag = DnaAtoms.Count;
             //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
             
             controlPoints[i] = new Vector4(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z, stopFlag);

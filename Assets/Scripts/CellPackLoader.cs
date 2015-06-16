@@ -78,6 +78,59 @@ public static class CellPackLoader
     //        //}
     //    }
     //}
+	public static void AddCurveIngredients(JSONNode ingredientDictionary)
+	{
+		//in case there is curveN, grab the data if more than 4 points
+		//use the given PDB for the representation.
+		var pdbName = ingredientDictionary["source"]["pdb"].Value.Replace(".pdb", "");
+		int nCurve = ingredientDictionary["nbCurve"].AsInt;//ingredientDictionary.Count - 3;
+		List<Vector4> atomSpheres;
+		if ((pdbName == "null") || (pdbName == "None")) {
+			atomSpheres = new List<Vector4>();
+			atomSpheres.Add(new Vector4(0,0,0,1));
+		} else {
+			var pdbPath = ProteinDiretory + pdbName + ".pdb";
+			if (!File.Exists(pdbPath)){ 
+				if (pdbName.Length == 4){
+					PdbLoader.DownloadPdbFile(pdbName, ProteinDiretory); // If the pdb file does not exist try to download it
+				}else {
+					PdbLoader.DownloadPdbFromRecipeFile(pdbName, ProteinDiretory);
+				}
+			}
+			atomSpheres = PdbLoader.ReadAtomSpheres(pdbPath);
+		}
+		Debug.Log (ingredientDictionary["name"]+" "+pdbName+" "+atomSpheres.Count);
+		float distance = 34.0f;
+		if (ingredientDictionary ["name"].Value.Contains ("DNA"))
+			//angular 60
+			//numStep 11
+			//twist 34.3
+			//scale sphere 1 // radii total 11.5
+			distance = 34.0f;
+		else if (ingredientDictionary ["name"].Value.Contains ("RNA"))
+			distance = DisplaySettings.Instance.DistanceContraint;
+		else if (ingredientDictionary ["name"].Value.Contains ("peptide"))
+			//no twist/scale = 3/numStep = ?
+			distance = DisplaySettings.Instance.DistanceContraint;
+		else if (ingredientDictionary ["name"].Value.Contains ("lypoglycane"))
+			//no distance constraint ?
+			//numStep1
+			//scale sphere 20
+			distance = DisplaySettings.Instance.DistanceContraint;
+		else 
+			distance = DisplaySettings.Instance.DistanceContraint;
+		for (int i=0; i<nCurve; i++) {
+			var controlPoints = new List<Vector4> ();
+			if ( ingredientDictionary ["curve" + i.ToString()].Count < 4 ) continue;
+			for (int k = 0; k < ingredientDictionary ["curve" + i.ToString()].Count; k++) {
+				var p = ingredientDictionary ["curve" + i.ToString()] [k];
+				controlPoints.Add (new Vector4 (-p [0].AsFloat, p [1].AsFloat, p [2].AsFloat, 1));
+			}
+			SceneManager.Instance.AddDNAPath(controlPoints);	
+			SceneManager.Instance.AddNucleicAcids(atomSpheres);
+			//break;
+		}
+	}
 
 	public static void AddRecipeIngredients(JSONNode recipeDictionary)
     {
@@ -86,6 +139,17 @@ public static class CellPackLoader
             var biomt = (bool)recipeDictionary[j]["source"]["biomt"].AsBool;
             var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
+			Debug.Log ("step "+recipeDictionary[j]["name"].Value);
+			//if (!recipeDictionary[j]["name"].Value.Contains("lypoglycane")) continue;
+
+			if (recipeDictionary[j].Count > 3){
+				AddCurveIngredients(recipeDictionary[j]);
+				continue;
+			}
+			else {
+				//if (!pdbName.Contains("1p71")) continue;
+				//continue;
+			}
 
             if (pdbName == "") continue;  
             if (pdbName == "null") continue;  
@@ -99,8 +163,14 @@ public static class CellPackLoader
             //if (!pdbName.Contains("3j3q_1vu4")) continue;
             //if (!pdbName.Contains("3gau")) continue;
 
-            var pdbPath = ProteinDiretory + pdbName + ".pdb";
-            if (!File.Exists(pdbPath)) PdbLoader.DownloadPdbFile(pdbPath, ProteinDiretory); // If the pdb file does not exist try to download it
+			var pdbPath = ProteinDiretory + pdbName + ".pdb";
+			if (!File.Exists(pdbPath)){ 
+				if (pdbName.Length == 4){
+					PdbLoader.DownloadPdbFile(pdbName, ProteinDiretory); // If the pdb file does not exist try to download it
+				}else {
+					PdbLoader.DownloadPdbFromRecipeFile(pdbName, ProteinDiretory);
+				}
+			}
 
             // Load all data from text files
             var atoms = PdbLoader.ReadAtomData(pdbPath);
@@ -205,32 +275,32 @@ public static class CellPackLoader
         }
 	}
 	
-	public static void LoadRecipe()
-    {
-        //var proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
-        if (!Directory.Exists(ProteinDiretory)) throw new Exception("No directory found at: " + ProteinDiretory);
-
-        //var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
-		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
-        if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
-
-        var resultData = Helper.ParseJson(cellPackSceneJsonPath);
-
-        //we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
-        //the recipe is optional as it will gave more information than just the result file.
-
-        //check if cytoplasme present
-        if (resultData["cytoplasme"] != null)
-        {
-            AddRecipeIngredients(resultData["cytoplasme"]["ingredients"]);
-        }
-         
-        for (int i = 0; i < resultData["compartments"].Count; i++)
-        {
+	public static void LoadRecipe(string recipePath)
+	{
+		//var proteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
+		if (!Directory.Exists(ProteinDiretory)) throw new Exception("No directory found at: " + ProteinDiretory);
+		
+		//var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
+		var cellPackSceneJsonPath = recipePath;//Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
+		if (!File.Exists(cellPackSceneJsonPath)) throw new Exception("No file found at: " + cellPackSceneJsonPath);
+		
+		var resultData = Helper.ParseJson(cellPackSceneJsonPath);
+		
+		//we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
+		//the recipe is optional as it will gave more information than just the result file.
+		
+		//check if cytoplasme present
+		if (resultData["cytoplasme"] != null)
+		{
+			AddRecipeIngredients(resultData["cytoplasme"]["ingredients"]);
+		}
+		
+		for (int i = 0; i < resultData["compartments"].Count; i++)
+		{
 			AddRecipeIngredients (resultData["compartments"][i]["interior"]["ingredients"]);
 			AddRecipeIngredients (resultData ["compartments"] [i] ["surface"] ["ingredients"]);
-        }
-    }
+		}
+	}
 
     public static void LoadMembrane()
     {
@@ -255,21 +325,52 @@ public static class CellPackLoader
             //should use -Z pdb are right-handed
             controlPoints.Add(new Vector4(-x, y, z, 1));
         }
-
+		var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_U_Base.pdb");
         SceneManager.Instance.AddDNAPath(controlPoints);
-        SceneManager.Instance.AddNucleicAcids();
+        SceneManager.Instance.AddNucleicAcids(null);
     }
+
+	public static void LoadMycoScene()
+	{
+		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
+		LoadRecipe(cellPackSceneJsonPath);
+		//LoadMembrane();
+		//LoadRna();
+	}
+	
+	public static void LoadBloodHIVScene()
+	{
+		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
+		LoadRecipe(cellPackSceneJsonPath);
+		LoadMembrane();
+		//LoadRna();
+	}
+
+	public static void LoadHIVScene()
+	{
+		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
+		LoadRecipe(cellPackSceneJsonPath);
+		LoadMembrane();
+		LoadRna();
+	}
+
 
     public static void LoadScene()
     {
-        //LoadRecipe();
-        //LoadMembrane();
-        LoadRna();
-        
+		//LoadMycoScene ();
+		//"HIV", "BloodHIV", "Mycoplasma"
+		if (DisplaySettings.Instance.sceneid==2)
+			LoadMycoScene ();
+		else if (DisplaySettings.Instance.sceneid==1)
+			LoadBloodHIVScene ();
+		else if (DisplaySettings.Instance.sceneid==0)
+			LoadHIVScene ();
+		else
+			LoadHIVScene ();
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        int n = 3;
+        int n = 0;
 
         for (int i = -n; i <= n; i++)
         {

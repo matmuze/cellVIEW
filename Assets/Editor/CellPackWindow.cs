@@ -36,7 +36,7 @@ public class CellPackWindow : EditorWindow
     public static void LoadScene()
     {
         CellPackLoader.ClearScene();
-        CellPackLoader.LoadScene();
+		CellPackLoader.LoadScene();
         EditorUtility.SetDirty(SceneManager.Instance);
     }
 
@@ -63,6 +63,7 @@ public class CellPackWindow : EditorWindow
 
     private Vector2 _scrollPos;
     private string[] _contourOptionsLabels = new string[] { "Show Contour", "Hide Contour", "Contour Only" };
+	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV", "Mycoplasma" };
 
     void OnGUI()
     {
@@ -73,9 +74,11 @@ public class CellPackWindow : EditorWindow
 
         EditorGUILayout.BeginVertical(style_1, GUILayout.ExpandWidth(true));
         {
+			DisplaySettings.Instance.sceneid  = EditorGUILayout.Popup("Scenes :", DisplaySettings.Instance.sceneid, _sceneOptionsLabels);
+
             if (GUILayout.Button("Load Scene"))
             {
-                LoadScene();
+				LoadScene();
             }
 
             if (GUILayout.Button("Clear Scene"))
@@ -116,7 +119,7 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.NumStepsPerSegment = EditorGUILayout.IntField("Num Steps Per Segment", DisplaySettings.Instance.NumStepsPerSegment);
 
                     DisplaySettings.Instance.EnableTwist = EditorGUILayout.Toggle("Enable Twist", DisplaySettings.Instance.EnableTwist);
-                    DisplaySettings.Instance.TwistFactor = EditorGUILayout.Slider("Twist Factor", DisplaySettings.Instance.TwistFactor, 0.0f, 100);
+                    DisplaySettings.Instance.TwistFactor = EditorGUILayout.Slider("Twist Factor", DisplaySettings.Instance.TwistFactor, -360.0f, 360);
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
 

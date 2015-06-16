@@ -62,6 +62,27 @@ public static class PdbLoader
         return path;
     }
 
+	public static string DownloadPdbFromRecipeFile(string fileName, string dstPath = null)
+	{
+		Debug.Log("Downloading recipe file");
+		var www = new WWW("https://raw.githubusercontent.com/mesoscope/cellPACK_data/master/cellPACK_database_1.1.0/other/" + fileName + ".pdb");
+		
+		#if UNITY_EDITOR
+		while (!www.isDone)
+		{
+			EditorUtility.DisplayProgressBar("Download", "Downloading...", www.progress);
+		}
+		EditorUtility.ClearProgressBar();
+		#endif
+		
+		if (!string.IsNullOrEmpty(www.error)) throw new Exception(fileName + " " + www.error);
+		
+		var path = (string.IsNullOrEmpty(dstPath) ? DefaultPdbDirectory : dstPath) + fileName + ".pdb";
+		File.WriteAllText(path, www.text);
+		
+		return path;
+	}
+
     public static string DownloadRecipeFile(string fileName, string dstPath = null)
     {
         Debug.Log("Downloading recipe file");

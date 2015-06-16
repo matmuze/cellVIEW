@@ -6,6 +6,7 @@ public class DisplaySettings : MonoBehaviour
 {
     // Base settings
     public float Scale = 0.065f;
+	public int sceneid;
     public int ContourOptions;
     public float ContourStrength;
     public bool EnableShadows;

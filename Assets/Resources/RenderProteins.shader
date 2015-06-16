@@ -188,7 +188,7 @@ Shader "Custom/RenderProteins"
 		//bool visible = _ProteinVisibilityFlag[infos.x] == 0;
 		
 		output.color = _FluorescenceColors[fluoId-1].xyz; 
-		output.radius = (fluoId == 0) ? 0 : position.w * _Scale;
+		output.radius = (fluoId == 0) ? 0 : 200.0f * _Scale;
 		output.position = position.xyz * _Scale;
 	}	
 		
@@ -229,8 +229,7 @@ Shader "Custom/RenderProteins"
 	{					
 		float lensqr = dot(input.uv, input.uv);   
 		if(lensqr > 1) discard;
-
-		color = float4(input.color,  0.1);				
+		color = float4(input.color,  0.1);//why 0.1 ?
 	}
 
 	ENDCG

@@ -28,6 +28,7 @@ struct vs2ds
 	int numSteps : INT1;		
 	int localSphereCount : INT2;		
 	int globalSphereCount : INT3;		
+	int pid : INT4;
 	
 	float radiusScale : FLOAT0;		
 		
@@ -62,7 +63,9 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.n2 = _DnaControlPointsNormals[id + 1].xyz;
 
 	bool skipSegment = pos0.w != pos1.w || pos1.w != pos2.w || pos2.w != pos3.w;
-
+    
+    output.pid = pos0.w;
+    
 	output.pos0 = pos0.xyz;
 	output.pos1 = pos1.xyz;
 	output.pos2 = pos2.xyz;
@@ -75,8 +78,8 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.radiusScale = 2;
 
 	output.localSphereCount = skipSegment ? 0 : 41;
-	output.radiusScale = 1;
-
+	output.radiusScale = 1.0f;
+	
 	output.globalSphereCount = numSteps * output.localSphereCount;
 	
 	/*****/
@@ -209,7 +212,9 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 			
 	int atomId = sphereId / op[0].numSteps;				
 	int stepId = (sphereId % op[0].numSteps);	
-
+    
+    int pid = op[0].pid;
+	
 	// Find begin step pos	
 	int beingStepId = stepId;	
 	float beingStepLerp =  op[0].rootPoints[beingStepId / 4][beingStepId % 4];
@@ -275,7 +280,7 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
     float4 quat2 = QuaternionFromAxisAngle(axis2, angle2);
 	
 	// Fetch nucleotid atoms
-	float4 sphere = _DnaAtoms[atomId];
+	float4 sphere = _DnaAtoms[pid+atomId];
 	float3 sphereCenter = sphere.xyz;		
 	
 	//sphereCenter.xyz *= 0;
@@ -311,8 +316,8 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 
 	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphere.w * op[0].radiusScale * _Scale; // Discard unwanted spheres	
 
-	//output.color = float3(1, midStepLerp, ((float)atomId / 41.0f));	// Debug colors		
-	output.color = float3(1,0, 0);	// Debug colors		
+	output.color = float3(1, midStepLerp, ((float)atomId / 41.0f));	// Debug colors		
+	//output.color = float3(1,0, 0);	// Debug colors		
 	output.id = op[0].segmentId * op[0].numSteps + stepId;
 }
 

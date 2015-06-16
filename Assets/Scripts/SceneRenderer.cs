@@ -66,7 +66,7 @@ public class SceneRenderer : MonoBehaviour
     {
         if (!DisplaySettings.Instance.EnableDNAConstraints) return;
 
-        int numSegments = SceneManager.Instance.NumDnaControlPoints - 1;
+        int numSegments = SceneManager.Instance.NumDnaSegments;
         int numSegmentPairs1 = (int)Mathf.Ceil(numSegments / 2.0f);
         int numSegmentPairs2 = (int)Mathf.Ceil(numSegments / 4.0f);
 
@@ -83,7 +83,7 @@ public class SceneRenderer : MonoBehaviour
         DistanceConstraintsCS.SetBuffer(0, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
         DistanceConstraintsCS.Dispatch(0, (int)Mathf.Ceil(numSegmentPairs1 / 16.0f), 1, 1);
 
-        // Do angular constraints
+        // Do bending constraints
         DistanceConstraintsCS.SetInt("_Offset", 0);
         DistanceConstraintsCS.SetBuffer(1, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
         DistanceConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
@@ -99,6 +99,11 @@ public class SceneRenderer : MonoBehaviour
         DistanceConstraintsCS.SetInt("_Offset", 3);
         DistanceConstraintsCS.SetBuffer(1, "_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
         DistanceConstraintsCS.Dispatch(1, (int)Mathf.Ceil(numSegmentPairs2 / 16.0f), 1, 1);
+
+        // Do twisting constraints
+        DistanceConstraintsCS.SetBuffer(2, "_DnaControlPointsNormal", ComputeBufferManager.Instance.DnaControlPointsNormal);
+        DistanceConstraintsCS.SetBuffer(2, "_DnaControlPointsPosition", ComputeBufferManager.Instance.DnaControlPoints); 
+        DistanceConstraintsCS.Dispatch(2, (int)Mathf.Ceil(numSegments / 16.0f), 1, 1);
     }
 
     [ImageEffectOpaque]
@@ -153,6 +158,7 @@ public class SceneRenderer : MonoBehaviour
         _renderDnaMaterial.SetFloat("_TwistFactor", DisplaySettings.Instance.TwistFactor);
         _renderDnaMaterial.SetBuffer("_DnaAtoms", ComputeBufferManager.Instance.DnaAtoms);
         _renderDnaMaterial.SetBuffer("_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPoints);
+        _renderDnaMaterial.SetBuffer("_DnaControlPointsNormal", ComputeBufferManager.Instance.DnaControlPointsNormal);
         _renderDnaMaterial.SetPass(0);
         Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumDnaSegments - 2); // Do not draw first and last segments
 

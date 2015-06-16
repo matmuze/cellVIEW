@@ -58,21 +58,70 @@ public class SceneManager : MonoBehaviour
         _instance.UploadAllData();
     }
 
-    public void LoadDna()
+    public Vector3 CubicInterpolate(Vector3 y0, Vector3 y1, Vector3 y2, Vector3 y3, float mu)
     {
-        DnaControlPoints.Add(Vector4.zero);
+        float mu2 = mu * mu;
+        Vector3 a0, a1, a2, a3;
 
-        for (int i = 0; i < 10000; i++)
+        a0 = y3 - y2 - y0 + y1;
+        a1 = y0 - y1 - a0;
+        a2 = y2 - y0;
+        a3 = y1;
+
+        return (a0 * mu * mu2 + a1 * mu2 + a2 * mu + a3);
+    }
+
+    public void LoadDna(List<Vector4> controlPoints)
+    {
+        var currentPointId = 1;
+        var currentPosition = controlPoints[currentPointId];
+        
+        var normalizedCp = new List<Vector4>();
+        normalizedCp.Add(currentPosition);
+
+        float distance = 20.0f;
+        float lerpValue = 0.0f;
+
+        // Normalize the distance between control points
+        while (true)
         {
-            var rand = UnityEngine.Random.onUnitSphere;
-            var newc = DnaControlPoints.Last() + new Vector4(rand.x, rand.y, rand.z, 0) * DisplaySettings.Instance.DistanceContraint * 0.5f;
-            DnaControlPoints.Add(newc);
+            if (currentPointId + 2 >= controlPoints.Count) break;
+            
+            var cp0 = controlPoints[currentPointId - 1];
+            var cp1 = controlPoints[currentPointId];
+            var cp2 = controlPoints[currentPointId + 1];
+            var cp3 = controlPoints[currentPointId + 2];
+
+            var found = false;
+
+            for (; lerpValue <= 1; lerpValue += 0.01f)
+            {
+                var candidate = CubicInterpolate(cp0, cp1, cp2, cp3, lerpValue);
+                var d = Vector3.Distance(currentPosition, candidate);
+
+                if (d > distance)
+                {
+                    normalizedCp.Add(candidate);
+                    currentPosition = candidate;
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                lerpValue = 0;
+                currentPointId++;
+            }
         }
 
-        var bounds = PdbLoader.GetBounds(DnaControlPoints);
-        PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+        DnaControlPoints.AddRange(normalizedCp);
+        //DnaControlPoints.AddRange(controlPoints.GetRange(0, 1000));
 
-        var atoms = PdbLoader.ReadPdbFile(PdbLoader.GetPdbFilePath("b-basepair"));
+        //var bounds = PdbLoader.GetBounds(DnaControlPoints);
+        //PdbLoader.OffsetPoints(ref DnaControlPoints, bounds.center);
+
+        var atoms = PdbLoader.ReadPdbFile(PdbLoader.GetPdbFilePath("RNA_G_Base"));
         var atomBounds = PdbLoader.GetBounds(atoms);
         PdbLoader.OffsetPoints(ref atoms, atomBounds.center);
         DnaAtoms.AddRange(atoms);

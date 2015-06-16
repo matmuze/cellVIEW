@@ -16,7 +16,6 @@ public class DisplaySettings : MonoBehaviour
     public float DistanceContraint;
     public float AngularConstraint;
 
-
     public int NumStepsPerSegment;
     public bool EnableTwist;
     public float TwistFactor;

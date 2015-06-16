@@ -6,6 +6,7 @@ public class ComputeBufferManager : MonoBehaviour
 {
     public ComputeBuffer DnaAtoms;	
     public ComputeBuffer DnaControlPoints;
+    public ComputeBuffer DnaControlPointsNormal;
 
     //*****//
 
@@ -48,6 +49,7 @@ public class ComputeBufferManager : MonoBehaviour
         // Dna control points
         if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(SceneManager.NumDnaAtomsMax, 16);
         if (DnaControlPoints == null) DnaControlPoints = new ComputeBuffer(SceneManager.NumDnaControlPointsMax, 16);
+        if (DnaControlPointsNormal == null) DnaControlPointsNormal = new ComputeBuffer(SceneManager.NumDnaControlPointsMax, 16);
 	}
 	
 	// Update is called once per frame
@@ -55,5 +57,6 @@ public class ComputeBufferManager : MonoBehaviour
     {
         if (DnaAtoms != null) { DnaAtoms.Release(); DnaAtoms = null; }
         if (DnaControlPoints != null) { DnaControlPoints.Release(); DnaControlPoints = null; }
+        if (DnaControlPointsNormal != null) { DnaControlPointsNormal.Release(); DnaControlPointsNormal = null; }
 	}
 }

@@ -18,6 +18,7 @@ uniform float _SegmentLength;
 
 uniform	StructuredBuffer<float4> _DnaAtoms;
 uniform	StructuredBuffer<float4> _DnaControlPoints;
+uniform	StructuredBuffer<float4> _DnaControlPointsNormal;
 
 //--------------------------------------------------------------------------------------
 
@@ -36,7 +37,7 @@ float4 QuaternionFromAxisAngle(float3 axis, float angle)
 	return q;
 }
 
-float3 CubicInterpolate(float3 y0, float3 y1, float3 y2,float3 y3, float3 mu)
+float3 CubicInterpolate(float3 y0, float3 y1, float3 y2,float3 y3, float mu)
 {
    float mu2 = mu*mu;
    float3 a0,a1,a2,a3;
@@ -65,7 +66,11 @@ struct vs2ds
 	float3 pos0 : FLOAT30;
 	float3 pos1 : FLOAT31;
 	float3 pos2 : FLOAT32;
-	float3 pos3 : FLOAT33;						
+	float3 pos3 : FLOAT33;	
+	
+	float3 n1 : FLOAT34;
+	float3 n2 : FLOAT35;	
+							
 	float4 rootPoints[NUM_ROOT_POINTS_FLOAT] : FLOAT4;
 };
 
@@ -74,24 +79,28 @@ struct vs2ds
 void VS(uint id : SV_VertexID, out vs2ds output)
 {			 
 	int numLinearSeachStep = 4;
-	int numBinarySearchStep = 4;			
+	int numBinarySearchStep = 8;			
 	int numStepsMax = min(_NumSteps, NUM_STEPS_PER_SEGMENT_MAX);	
 	
 	float linearStepSize = 0.5f / numStepsMax;	
 	float stepLength = _SegmentLength / (float)numStepsMax;
-		
-	int controlPointId = id + 1; // The first segment is skipped
 
-	float3 pos0 = _DnaControlPoints[controlPointId -1].xyz;
-	float3 pos1 = _DnaControlPoints[controlPointId].xyz;
-	float3 pos2 = _DnaControlPoints[controlPointId + 1].xyz;
-	float3 pos3 = _DnaControlPoints[controlPointId + 2].xyz;
+	float3 pos0 = _DnaControlPoints[id].xyz; // We skip the first segment
+	float3 pos1 = _DnaControlPoints[id + 1].xyz;
+	float3 pos2 = _DnaControlPoints[id + 2].xyz;
+	float3 pos3 = _DnaControlPoints[id + 3].xyz;
+
+	float3 n1 = _DnaControlPointsNormal[id + 1];
+	float3 n2 = _DnaControlPointsNormal[id + 2];
 
 	output.pos0 = pos0;
 	output.pos1 = pos1;
 	output.pos2 = pos2;
 	output.pos3 = pos3;
 	
+	output.n1 = n1;
+	output.n2 = n2;
+
 	output.rootPoints[0][0] = 0;
 	output.segmentCount = numStepsMax;
 	output.localSphereCount = 41;
@@ -214,6 +223,13 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	int atomId = sphereId / op[0].segmentCount;				
 	int segmentId = (sphereId % op[0].segmentCount);	
 
+	// Find normal at control points
+	//float3 n1 = op[0].n1; 
+	//float3 n2 = op[0].n2; 
+
+	float3 n1 = normalize(cross(op[0].pos0 - op[0].pos1, op[0].pos2 - op[0].pos1));	
+	float3 n2 = normalize(cross(op[0].pos1 - op[0].pos2,  op[0].pos3 - op[0].pos2));	
+
 	// Find begin segment pos	
 	int beingSegmentId = segmentId;	
 	float beingSegmentLerp =  op[0].rootPoints[beingSegmentId / 4][beingSegmentId % 4];
@@ -229,11 +245,7 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	float3 tangent = normalize(diff);
 	float3 sphereOffset = beginSegmentPos + diff * 0.5;	
 	float midsegmentLerp = endSegmentLerp + (endSegmentLerp - endSegmentLerp) * 0.5;
-
-	// Find normal at control points
-	float3 n1 = normalize(cross(op[0].pos0 - op[0].pos1, op[0].pos2 - op[0].pos1));	
-	float3 n2 = normalize(cross(op[0].pos1 - op[0].pos2,  op[0].pos3 - op[0].pos2));	
-
+	
 	// Find binormal
 	float3 crossDirection = float3(0,1,0);	
 	float3 binormal = normalize(lerp(n1, n2, beingSegmentLerp));		
@@ -281,14 +293,33 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 
 	// Fetch nucleotid atoms
 	float4 sphereCenter = _DnaAtoms[atomId];	
-		
 	sphereCenter.xyz = QuaternionTransform(quat, sphereCenter.xyz);
-	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);	
+	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
+	
+	//sphereCenter = float4(0,0,0,1);
+	//sphereOffset = lerp(op[0].pos1, op[0].pos2, midsegmentLerp);
+	
+	//if(beingSegmentLerp == 0) 
+	//{
+	//	sphereOffset = op[0].pos1;
+	//	sphereCenter.xyz = atomId * n1;
+	//	float3 axis = normalize(op[0].pos0 - op[0].pos2);
+	//	float4 quat2 = QuaternionFromAxisAngle(axis, -90 * 3.12 / 180);
+	//	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
+	//}
+	
+	//if(endSegmentLerp == 1)
+	//{
+	//	sphereCenter.xyz = atomId * n2;
+	//	float3 axis = normalize(pos1 - pos3);
+	//	float4 quat2 = QuaternionFromAxisAngle(axis,  90 * 3.12 / 180);
+	//	sphereCenter.xyz = QuaternionTransform(quat2, sphereCenter.xyz);
+	//}
 
 	output.position = sphereOffset + sphereCenter * _Scale; 
-	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphereCenter.w * 1.2; // Discard unwanted spheres	
-	//output.color = float3(1, endSegmentLerp, ((float)atomId / 41.0f));	// Debug colors		
-	output.color = float3(1,0.8,0.8);
+	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphereCenter.w; // Discard unwanted spheres	
+	output.color = float3(1, endSegmentLerp, ((float)atomId / 41.0f));	// Debug colors		
+	//output.color = float3(1,0.8,0.8);
 }
 
 //--------------------------------------------------------------------------------------

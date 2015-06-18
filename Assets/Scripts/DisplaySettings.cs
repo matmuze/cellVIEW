@@ -15,6 +15,10 @@ public class DisplaySettings : MonoBehaviour
     public bool ShowMembrane;
     public bool ShowRNA;
 
+	//Fluo setting
+	public bool Fluo;
+	public bool FluoFS;
+
     //DNA/RNA settings
     public bool EnableDNAConstraints;
     public float DistanceContraint;

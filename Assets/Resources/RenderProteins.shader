@@ -229,7 +229,12 @@ Shader "Custom/RenderProteins"
 	{					
 		float lensqr = dot(input.uv, input.uv);   
 		if(lensqr > 1) discard;
-		color = float4(input.color,  0.1);//why 0.1 ?
+
+		float sigma = 400.0f/2.35482f;
+		float heat = exp(dot(lensqr, lensqr )/(-2.0f*sigma*sigma));
+		//float heat = pow(cos(lensqr),);
+		color = float4(input.color,  heat/5.0f);//why 0.1 ?
+		//I(i, j) = exp !−((x − i)2 + (y − j)2)/(2σ2)
 	}
 
 	ENDCG

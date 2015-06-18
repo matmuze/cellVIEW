@@ -313,6 +313,11 @@ public class SceneManager : MonoBehaviour
 
     private List<Vector4> NormalizeControlPoints(List<Vector4> controlPoints)
     {
+		int nP = controlPoints.Count;
+		//insert a point at the end and at the begining
+		controlPoints.Insert (0, controlPoints[0]+(controlPoints[0]-controlPoints[1]));
+		controlPoints.Add (controlPoints[nP-1]+(controlPoints[nP-1]-controlPoints[nP-2]));
+
         var normalizedControlPoints = new List<Vector4>();
         normalizedControlPoints.Add(controlPoints[0]);
         normalizedControlPoints.Add(controlPoints[1]);
@@ -387,15 +392,17 @@ public class SceneManager : MonoBehaviour
         return smoothNormals;
     }
 
-    public void AddDNAPath(List<Vector4> path)
-    {
+	public void AddDNAPath(List<Vector4> path, int DnaAtomsCount)
+	{
         var controlPoints = NormalizeControlPoints(path);
         var normals = GetSmoothNormals(controlPoints);
-
+		float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
+		if (DnaAtomsCount == 1 ) stopFlag = (float) DnaAtoms.Count+0.1f;
+		Debug.Log ("the stop flag is set at " + stopFlag.ToString ());
         for (int i = 0; i < controlPoints.Count; i++)
         {
             //var stopFlag = DnaControlPointsPositions.Count;
-			var stopFlag = DnaAtoms.Count;
+
             //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
             
             controlPoints[i] = new Vector4(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z, stopFlag);
@@ -449,6 +456,7 @@ public class SceneManager : MonoBehaviour
 
             SelectedInstance = elementId;
             ComputeBufferManager.Instance.ProteinInstanceInfos.SetData(InstanceInfos.ToArray());
+			//make it fluorescente ?
         }
     }
 

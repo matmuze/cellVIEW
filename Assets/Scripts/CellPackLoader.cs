@@ -87,7 +87,7 @@ public static class CellPackLoader
 		List<Vector4> atomSpheres;
 		if ((pdbName == "null") || (pdbName == "None")) {
 			atomSpheres = new List<Vector4>();
-			atomSpheres.Add(new Vector4(0,0,0,1));
+			atomSpheres.Add(new Vector4(0,0,0,1));//put the scale here ?
 		} else {
 			var pdbPath = ProteinDiretory + pdbName + ".pdb";
 			if (!File.Exists(pdbPath)){ 
@@ -126,7 +126,7 @@ public static class CellPackLoader
 				var p = ingredientDictionary ["curve" + i.ToString()] [k];
 				controlPoints.Add (new Vector4 (-p [0].AsFloat, p [1].AsFloat, p [2].AsFloat, 1));
 			}
-			SceneManager.Instance.AddDNAPath(controlPoints);	
+			SceneManager.Instance.AddDNAPath(controlPoints,atomSpheres.Count);	
 			SceneManager.Instance.AddNucleicAcids(atomSpheres);
 			//break;
 		}
@@ -140,7 +140,7 @@ public static class CellPackLoader
             var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
 			Debug.Log ("step "+recipeDictionary[j]["name"].Value);
-			//if (!recipeDictionary[j]["name"].Value.Contains("lypoglycane")) continue;
+			if (!recipeDictionary[j]["name"].Value.Contains("DNA")) continue;
 
 			if (recipeDictionary[j].Count > 3){
 				AddCurveIngredients(recipeDictionary[j]);
@@ -326,18 +326,27 @@ public static class CellPackLoader
             controlPoints.Add(new Vector4(-x, y, z, 1));
         }
 		var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_U_Base.pdb");
-        SceneManager.Instance.AddDNAPath(controlPoints);
-        SceneManager.Instance.AddNucleicAcids(null);
+        SceneManager.Instance.AddDNAPath(controlPoints,atomSpheres.Count);
+		SceneManager.Instance.AddNucleicAcids(atomSpheres);
     }
 
 	public static void LoadMycoScene()
+	{
+		//var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
+		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/mycoDNA.json";
+		LoadRecipe(cellPackSceneJsonPath);
+		//LoadMembrane();
+		//LoadRna();
+	}
+	public static void LoadMycoDNAScene()
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
 		LoadRecipe(cellPackSceneJsonPath);
 		//LoadMembrane();
 		//LoadRna();
 	}
-	
+
+
 	public static void LoadBloodHIVScene()
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
@@ -359,12 +368,14 @@ public static class CellPackLoader
     {
 		//LoadMycoScene ();
 		//"HIV", "BloodHIV", "Mycoplasma"
-		if (DisplaySettings.Instance.sceneid==2)
+		if (DisplaySettings.Instance.sceneid == 2)
 			LoadMycoScene ();
-		else if (DisplaySettings.Instance.sceneid==1)
+		else if (DisplaySettings.Instance.sceneid == 1)
 			LoadBloodHIVScene ();
-		else if (DisplaySettings.Instance.sceneid==0)
+		else if (DisplaySettings.Instance.sceneid == 0)
 			LoadHIVScene ();
+		else if (DisplaySettings.Instance.sceneid == 3)
+			LoadMycoDNAScene ();
 		else
 			LoadHIVScene ();
         // Tell the manager what is the size of the dataset for duplication

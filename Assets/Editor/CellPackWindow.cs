@@ -63,7 +63,7 @@ public class CellPackWindow : EditorWindow
 
     private Vector2 _scrollPos;
     private string[] _contourOptionsLabels = new string[] { "Show Contour", "Hide Contour", "Contour Only" };
-	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV", "Mycoplasma" };
+	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV", "Mycoplasma", "MycoplasmaDNA" };
 
     void OnGUI()
     {
@@ -111,9 +111,16 @@ public class CellPackWindow : EditorWindow
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
 
-                    EditorGUILayout.LabelField("DNA Settings", EditorStyles.boldLabel);
-                    EditorGUI.indentLevel++;
-                    DisplaySettings.Instance.EnableDNAConstraints = EditorGUILayout.Toggle("Enable DNA Constraints", DisplaySettings.Instance.EnableDNAConstraints);
+					EditorGUILayout.LabelField("Fluorescene Settings", EditorStyles.boldLabel);
+					EditorGUI.indentLevel++;
+					DisplaySettings.Instance.Fluo = EditorGUILayout.Toggle("On", DisplaySettings.Instance.Fluo);
+					DisplaySettings.Instance.FluoFS = EditorGUILayout.Toggle("Full Screen", DisplaySettings.Instance.FluoFS);
+					EditorGUI.indentLevel--;
+					EditorGUILayout.Space();
+					
+					EditorGUILayout.LabelField("DNA Settings", EditorStyles.boldLabel);
+					EditorGUI.indentLevel++;
+					DisplaySettings.Instance.EnableDNAConstraints = EditorGUILayout.Toggle("Enable DNA Constraints", DisplaySettings.Instance.EnableDNAConstraints);
                     DisplaySettings.Instance.DistanceContraint = EditorGUILayout.Slider("Distance Constraint", DisplaySettings.Instance.DistanceContraint, 0.01f, 100);
                     DisplaySettings.Instance.AngularConstraint = EditorGUILayout.Slider("Angular Constraint", DisplaySettings.Instance.AngularConstraint, 0.01f, 100);
                     DisplaySettings.Instance.NumStepsPerSegment = EditorGUILayout.IntField("Num Steps Per Segment", DisplaySettings.Instance.NumStepsPerSegment);

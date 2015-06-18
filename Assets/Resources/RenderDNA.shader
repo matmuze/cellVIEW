@@ -54,17 +54,22 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	float linearStepSize = 0.5f / numSteps;	
 	float stepLength = _SegmentLength / (float)numSteps;
 
-	float4 pos0 = _DnaControlPoints[id]; // We skip the first segment
+	float4 pos0 = _DnaControlPoints[id]; // We skip the first segment //Why 
 	float4 pos1 = _DnaControlPoints[id + 1];
 	float4 pos2 = _DnaControlPoints[id + 2];
 	float4 pos3 = _DnaControlPoints[id + 3];
-
+    
 	output.n1 = _DnaControlPointsNormals[id].xyz;
 	output.n2 = _DnaControlPointsNormals[id + 1].xyz;
 
 	bool skipSegment = pos0.w != pos1.w || pos1.w != pos2.w || pos2.w != pos3.w;
     
-    output.pid = pos0.w;
+    
+    output.pid = (float) pos0.w;//(int)ceil(pos0.w);
+    float invdiff = 1.0/(pos0.w-floor(pos0.w));    
+    if (floor(pos0.w) ==0) invdiff = (int) (1.0/pos0.w);
+    int sphereCount = (int) invdiff;
+    if (invdiff == 0.1) sphereCount =1;
     
 	output.pos0 = pos0.xyz;
 	output.pos1 = pos1.xyz;
@@ -77,8 +82,8 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	output.localSphereCount = 1;
 	output.radiusScale = 2;
 
-	output.localSphereCount = skipSegment ? 0 : 41;
-	output.radiusScale = 1.0f;
+	output.localSphereCount = skipSegment ? 0 : sphereCount;
+	output.radiusScale = 1.0f;//dnaAtom[0].w ?
 	
 	output.globalSphereCount = numSteps * output.localSphereCount;
 	
@@ -213,7 +218,7 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	int atomId = sphereId / op[0].numSteps;				
 	int stepId = (sphereId % op[0].numSteps);	
     
-    int pid = op[0].pid;
+    int pid = (int) floor(op[0].pid);// op[0].pid;//(int)ceil(pos0.w);
 	
 	// Find begin step pos	
 	int beingStepId = stepId;	
@@ -315,9 +320,9 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	//output.radius =; // Discard unwanted spheres	
 
 	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphere.w * op[0].radiusScale * _Scale; // Discard unwanted spheres	
-
-	output.color = float3(1, midStepLerp, ((float)atomId / 41.0f));	// Debug colors		
-	//output.color = float3(1,0, 0);	// Debug colors		
+	//float c = (float)atomId / (float)op[0].localSphereCount;
+	output.color = float3(1, midStepLerp, ((float)atomId / (float)op[0].localSphereCount));	// Debug colors		
+	output.color = float3(0,1, 0);	// Debug colors		
 	output.id = op[0].segmentId * op[0].numSteps + stepId;
 }
 
@@ -380,8 +385,8 @@ void FS (gs2fs input, out float4 color : COLOR0, out float4 id : COLOR1, out flo
 		
 	// Find color
 	//float ndotl = pow(max( 0.0, dot(float3(0,0,1), normal)),0.1); //, 0.15 * input.lambertFalloff);						
-	color = float4(ColorCorrection(input.color), 1);				
-
+	//color = float4(ColorCorrection(input.color), 1);				
+	color = float4(input.color, 1);
 	// Find id color
 	uint t1 = input.id / 256;
 	uint t2 = t1 / 256;

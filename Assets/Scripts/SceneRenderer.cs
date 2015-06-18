@@ -25,6 +25,7 @@ public class SceneRenderer : MonoBehaviour
     public ComputeShader ReadPixelCS;
 
     public RenderTexture MicroscopyTexture;
+	public GameObject CanvasFluo;
 
     /*****/
 
@@ -148,7 +149,7 @@ public class SceneRenderer : MonoBehaviour
 
         // DNA/RNA data
         _renderDnaMaterial.SetInt("_NumSteps", DisplaySettings.Instance.NumStepsPerSegment);
-        _renderDnaMaterial.SetInt("_NumSegments", SceneManager.Instance.NumDnaControlPoints - 1);
+		_renderDnaMaterial.SetInt ("_NumSegments", SceneManager.Instance.NumDnaControlPoints);// - 1);
         _renderDnaMaterial.SetInt("_EnableTwist", Convert.ToInt32(DisplaySettings.Instance.EnableTwist));
 
         _renderDnaMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
@@ -392,6 +393,12 @@ public class SceneRenderer : MonoBehaviour
         //Debug.Log("num batches " + batchCount[0]);
     }
 
+	private void ToggleFluorescence(){
+		CanvasFluo.SetActive (DisplaySettings.Instance.Fluo);
+		CanvasFluo.transform.GetChild (0).gameObject.SetActive (DisplaySettings.Instance.FluoFS);
+		CanvasFluo.transform.GetChild (1).gameObject.SetActive (!DisplaySettings.Instance.FluoFS);
+	}
+
     [ImageEffectOpaque]
     void OnRenderImage(RenderTexture src, RenderTexture dst)
     {
@@ -401,6 +408,8 @@ public class SceneRenderer : MonoBehaviour
         {
             Graphics.Blit(src, dst); return;
         }
+
+		ToggleFluorescence ();
 
         ComputeDNAStrands();
 

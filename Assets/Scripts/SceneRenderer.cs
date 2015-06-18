@@ -156,11 +156,17 @@ public class SceneRenderer : MonoBehaviour
         _renderDnaMaterial.SetFloat("_SegmentLength", DisplaySettings.Instance.DistanceContraint);
         _renderDnaMaterial.SetFloat("_TwistFactor", DisplaySettings.Instance.TwistFactor);
         _renderDnaMaterial.SetBuffer("_DnaAtoms", ComputeBufferManager.Instance.DnaAtoms);
+		_renderDnaMaterial.SetBuffer("_controlPointsTypes", ComputeBufferManager.Instance.controlPointsTypes);
         _renderDnaMaterial.SetBuffer("_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPointsPositions);
         _renderDnaMaterial.SetBuffer("_DnaControlPointsNormals", ComputeBufferManager.Instance.DnaControlPointsNormals);
+		
+		_renderDnaMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
+		_renderDnaMaterial.SetInt("_EnableCrossSection", Convert.ToInt32(DisplaySettings.Instance.EnableCrossSection));
+		_renderDnaMaterial.SetVector("_CrossSectionPlane", new Vector4(DisplaySettings.Instance.CrossSectionPlaneNormal.x, DisplaySettings.Instance.CrossSectionPlaneNormal.y, DisplaySettings.Instance.CrossSectionPlaneNormal.z, DisplaySettings.Instance.CrossSectionPlaneDistance));
 
-        // Shadow data
-        //RenderSceneMaterial.SetInt("_EnableShadows", Convert.ToInt32(DisplaySettings.Instance.EnableShadows));
+
+		// Shadow data
+		//RenderSceneMaterial.SetInt("_EnableShadows", Convert.ToInt32(DisplaySettings.Instance.EnableShadows));
         //RenderSceneMaterial.SetTexture("_ShadowMap", ShadowMap);
         //RenderSceneMaterial.SetVector("_ShadowCameraForward", ShadowCamera.transform.forward);
         //RenderSceneMaterial.SetVector("_ShadowCameraWorldPos", ShadowCamera.transform.position);

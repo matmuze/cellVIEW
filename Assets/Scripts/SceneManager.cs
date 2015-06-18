@@ -45,6 +45,7 @@ public class SceneManager : MonoBehaviour
 
     // Dna data
     public List<Vector4> DnaAtoms = new List<Vector4>();
+	public List<Vector4> controlPointsTypes = new List<Vector4>();
     public List<Vector4> DnaControlPointsPositions = new List<Vector4>();
     public List<Vector4> DnaControlPointsNormals = new List<Vector4>();
     
@@ -305,10 +306,17 @@ public class SceneManager : MonoBehaviour
     //    UnitAtomCount += LipidAtomPositions.Count;
     //}
 
-	public void AddNucleicAcids(List<Vector4> atomSpheres)
+	public void AddNucleicAcids(List<Vector4> atomSpheres,float twist,int numStep,float radius)
     {
 		if (atomSpheres == null) atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
-        DnaAtoms.AddRange(atomSpheres);
+		float count = (float)DnaAtoms.Count+1.0f/(float)(atomSpheres.Count);
+		//float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
+		if (atomSpheres.Count == 1 ) count = (float) DnaAtoms.Count+0.1f;
+		Debug.Log (atomSpheres.Count.ToString ()+" " +DnaAtoms.Count.ToString());
+		Debug.Log (count + "" + 1.0f / (float)(atomSpheres.Count));
+		controlPointsTypes.Add (new Vector4 (count, twist, numStep, radius));
+		Debug.Log (controlPointsTypes [controlPointsTypes.Count-1].ToString ());
+		DnaAtoms.AddRange(atomSpheres);
     }
 
     private List<Vector4> NormalizeControlPoints(List<Vector4> controlPoints)
@@ -392,16 +400,19 @@ public class SceneManager : MonoBehaviour
         return smoothNormals;
     }
 
-	public void AddDNAPath(List<Vector4> path, int DnaAtomsCount)
+	public void AddDNAPath(List<Vector4> path)
 	{
         var controlPoints = NormalizeControlPoints(path);
         var normals = GetSmoothNormals(controlPoints);
-		float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
-		if (DnaAtomsCount == 1 ) stopFlag = (float) DnaAtoms.Count+0.1f;
+		float stopFlag = (float)controlPointsTypes.Count+1.0f/(float)(DnaControlPointsPositions.Count+1);
+		//float stopFlag = (float)DnaControlPointsPositions.Count+1.0f/(float)(controlPointsTypes.Count);
+		//float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
+		if (DnaControlPointsPositions.Count+1 == 1 ) stopFlag = (float) controlPointsTypes.Count+0.1f;
+
 		Debug.Log ("the stop flag is set at " + stopFlag.ToString ());
         for (int i = 0; i < controlPoints.Count; i++)
         {
-            //var stopFlag = DnaControlPointsPositions.Count;
+            //stopFlag = DnaControlPointsPositions.Count;
 
             //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
             
@@ -529,6 +540,7 @@ public class SceneManager : MonoBehaviour
 
         // Clear dna data
         DnaAtoms.Clear();
+		controlPointsTypes.Clear ();
         DnaControlPointsPositions.Clear();
         DnaControlPointsNormals.Clear();
 
@@ -576,6 +588,7 @@ public class SceneManager : MonoBehaviour
 
         // Upload Dna data
         ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
+		ComputeBufferManager.Instance.controlPointsTypes.SetData(controlPointsTypes.ToArray());
         ComputeBufferManager.Instance.DnaControlPointsPositions.SetData(DnaControlPointsPositions.ToArray());
         ComputeBufferManager.Instance.DnaControlPointsNormals.SetData(DnaControlPointsNormals.ToArray());
 

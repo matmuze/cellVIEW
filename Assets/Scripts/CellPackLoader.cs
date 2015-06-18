@@ -85,9 +85,13 @@ public static class CellPackLoader
 		var pdbName = ingredientDictionary["source"]["pdb"].Value.Replace(".pdb", "");
 		int nCurve = ingredientDictionary["nbCurve"].AsInt;//ingredientDictionary.Count - 3;
 		List<Vector4> atomSpheres;
-		if ((pdbName == "null") || (pdbName == "None")) {
+		Debug.Log (pdbName);
+		Debug.Log (((pdbName == "null") || (pdbName == "None") || (pdbName == null)));
+		if ((pdbName == "null") || (pdbName == "None")||(pdbName == null)) {
 			atomSpheres = new List<Vector4>();
 			atomSpheres.Add(new Vector4(0,0,0,1));//put the scale here ?
+			atomSpheres.Add(new Vector4(0,1,0,1));
+
 		} else {
 			var pdbPath = ProteinDiretory + pdbName + ".pdb";
 			if (!File.Exists(pdbPath)){ 
@@ -101,24 +105,55 @@ public static class CellPackLoader
 		}
 		Debug.Log (ingredientDictionary["name"]+" "+pdbName+" "+atomSpheres.Count);
 		float distance = 34.0f;
-		if (ingredientDictionary ["name"].Value.Contains ("DNA"))
+		float twist = 0.0f;
+		int numStep = 1;
+		float radius = 1;
+		if (ingredientDictionary ["name"].Value.Contains ("DNA")) {
 			//angular 60
-			//numStep 11
-			//twist 34.3
-			//scale sphere 1 // radii total 11.5
+			numStep = 15;
+			twist = 34.3f;
+			radius = 1;// radii total 11.5
 			distance = 34.0f;
+		}
 		else if (ingredientDictionary ["name"].Value.Contains ("RNA"))
-			distance = DisplaySettings.Instance.DistanceContraint;
+		{
+			//angular 60
+			numStep = 11;
+			twist = 34.3f;
+			radius = 1;// radii total 11.5
+			distance = 34.0f;
+		}
 		else if (ingredientDictionary ["name"].Value.Contains ("peptide"))
 			//no twist/scale = 3/numStep = ?
-			distance = DisplaySettings.Instance.DistanceContraint;
+		{
+			//angular 60
+			numStep = 10;
+			twist = 0;
+			radius = 2.5f;// radii total 11.5
+			distance = 34.0f;
+		}
 		else if (ingredientDictionary ["name"].Value.Contains ("lypoglycane"))
 			//no distance constraint ?
 			//numStep1
 			//scale sphere 20
-			distance = DisplaySettings.Instance.DistanceContraint;
+		{
+			//angular 60
+			numStep = 10;
+			twist = 0;
+			radius = 8;// radii total 11.5
+			distance = 34.0f;
+		}
 		else 
-			distance = DisplaySettings.Instance.DistanceContraint;
+		{
+			//angular 60
+			numStep = 11;
+			twist = 34.3f;
+			radius = 1;// radii total 11.5
+			distance = 34.0f;
+		}
+
+		SceneManager.Instance.AddNucleicAcids(atomSpheres,twist,numStep,radius);//this acullay should add a type
+
 		for (int i=0; i<nCurve; i++) {
 			var controlPoints = new List<Vector4> ();
 			if ( ingredientDictionary ["curve" + i.ToString()].Count < 4 ) continue;
@@ -126,10 +161,10 @@ public static class CellPackLoader
 				var p = ingredientDictionary ["curve" + i.ToString()] [k];
 				controlPoints.Add (new Vector4 (-p [0].AsFloat, p [1].AsFloat, p [2].AsFloat, 1));
 			}
-			SceneManager.Instance.AddDNAPath(controlPoints,atomSpheres.Count);	
-			SceneManager.Instance.AddNucleicAcids(atomSpheres);
+			SceneManager.Instance.AddDNAPath(controlPoints);	
 			//break;
 		}
+
 	}
 
 	public static void AddRecipeIngredients(JSONNode recipeDictionary)
@@ -140,7 +175,8 @@ public static class CellPackLoader
             var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
 			Debug.Log ("step "+recipeDictionary[j]["name"].Value);
-			if (!recipeDictionary[j]["name"].Value.Contains("DNA")) continue;
+
+			//if (!recipeDictionary[j]["name"].Value.Contains("lypoglycane")) continue;
 
 			if (recipeDictionary[j].Count > 3){
 				AddCurveIngredients(recipeDictionary[j]);
@@ -326,8 +362,8 @@ public static class CellPackLoader
             controlPoints.Add(new Vector4(-x, y, z, 1));
         }
 		var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_U_Base.pdb");
-        SceneManager.Instance.AddDNAPath(controlPoints,atomSpheres.Count);
-		SceneManager.Instance.AddNucleicAcids(atomSpheres);
+		SceneManager.Instance.AddNucleicAcids(atomSpheres,20.0f,11,1.0f);
+		SceneManager.Instance.AddDNAPath(controlPoints);
     }
 
 	public static void LoadMycoScene()

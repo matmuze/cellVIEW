@@ -140,7 +140,7 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.EnableCrossSection = EditorGUILayout.BeginToggleGroup("Cross Section", DisplaySettings.Instance.EnableCrossSection);
                     EditorGUI.indentLevel++;
                     DisplaySettings.Instance.CrossSectionPlaneNormal = EditorGUILayout.Vector3Field("Plane Normal", DisplaySettings.Instance.CrossSectionPlaneNormal).normalized;
-                    DisplaySettings.Instance.CrossSectionPlaneDistance = EditorGUILayout.Slider("Plane Distance", DisplaySettings.Instance.CrossSectionPlaneDistance, 50.0f, -50.0f);
+                    DisplaySettings.Instance.CrossSectionPlaneDistance = EditorGUILayout.Slider("Plane Distance", DisplaySettings.Instance.CrossSectionPlaneDistance, 500.0f, -500.0f);
                     EditorGUI.indentLevel--;
                     EditorGUILayout.EndToggleGroup();
                     EditorGUILayout.Space();

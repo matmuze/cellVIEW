@@ -45,9 +45,16 @@ public class SceneManager : MonoBehaviour
 
     // Dna data
     public List<Vector4> DnaAtoms = new List<Vector4>();
-	public List<Vector4> controlPointsTypes = new List<Vector4>();
     public List<Vector4> DnaControlPointsPositions = new List<Vector4>();
     public List<Vector4> DnaControlPointsNormals = new List<Vector4>();
+    public List<Vector4> DnaControlPointsInfos = new List<Vector4>();
+
+    public List<string> CurveIngredientsNames = new List<string>();
+    public List<Vector4> CurveIngredientsInfos = new List<Vector4>();
+    public List<Vector4> CurveIngredientsColors = new List<Vector4>();
+
+    public List<int> DnaControlPointsStart = new List<int>();
+    public List<int> DnaControlPointsCount = new List<int>();
     
     public int NumProteinInstances
     {
@@ -306,17 +313,69 @@ public class SceneManager : MonoBehaviour
     //    UnitAtomCount += LipidAtomPositions.Count;
     //}
 
-	public void AddNucleicAcids(List<Vector4> atomSpheres,float twist,int numStep,float radius)
+    public void AddCurveIngredient(string name, List<Vector4> atomSpheres)
     {
-		if (atomSpheres == null) atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
-		float count = (float)DnaAtoms.Count+1.0f/(float)(atomSpheres.Count);
-		//float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
-		if (atomSpheres.Count == 1 ) count = (float) DnaAtoms.Count+0.1f;
-		Debug.Log (atomSpheres.Count.ToString ()+" " +DnaAtoms.Count.ToString());
-		Debug.Log (count + "" + 1.0f / (float)(atomSpheres.Count));
-		controlPointsTypes.Add (new Vector4 (count, twist, numStep, radius));
-		Debug.Log (controlPointsTypes [controlPointsTypes.Count-1].ToString ());
-		DnaAtoms.AddRange(atomSpheres);
+        if (IngredientNames.Contains(name)) return;
+
+        float distance = 34.0f;
+        float twist = 0.0f;
+        int numStep = 1;
+        float radius = 1;
+
+        if (name.Contains("DNA"))
+        {
+            //angular 60
+            numStep = 12;
+            twist = 34.3f;
+            radius = 1;// radii total 11.5
+            distance = 34.0f;
+        }
+        else if (name.Contains("RNA"))
+        {
+            //angular 60
+            numStep = 11;
+            twist = 34.3f;
+            radius = 1;// radii total 11.5
+            distance = 34.0f;
+        }
+        else if (name.Contains("peptide"))
+        //no twist/scale = 3/numStep = ?
+        {
+            //angular 60
+            numStep = 10;
+            twist = 0;
+            radius = 2.5f;// radii total 11.5
+            distance = 34.0f;
+        }
+        else if (name.Contains("lypoglycane"))
+        //no distance constraint ?
+        //numStep1
+        //scale sphere 20
+        {
+            //angular 60
+            numStep = 10;
+            twist = 0;
+            radius = 8;// radii total 11.5
+            distance = 34.0f;
+        }
+        else
+        {
+            //angular 60
+            numStep = 11;
+            twist = 34.3f;
+            radius = 1;// radii total 11.5
+            distance = 34.0f;
+        }
+
+        if (atomSpheres == null) atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "b-basepair.pdb");
+        float count = (float)DnaAtoms.Count + 1.0f / (float)(atomSpheres.Count);
+        //float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
+        if (atomSpheres.Count == 1) count = (float)DnaAtoms.Count + 0.1f;
+
+        CurveIngredientsNames.Add(name);
+        CurveIngredientsColors.Add(Helper.GetRandomColor());
+        CurveIngredientsInfos.Add(new Vector4(count, twist, numStep, radius));
+        DnaAtoms.AddRange(atomSpheres);
     }
 
     private List<Vector4> NormalizeControlPoints(List<Vector4> controlPoints)
@@ -384,7 +443,7 @@ public class SceneManager : MonoBehaviour
 
         smoothNormals.Add(Vector3.Normalize(Vector3.Cross(p0 - p1, p2 - p1)));
 
-        for (int i = 2; i < controlPoints.Count - 1; i++)
+        for (int i = 1; i < controlPoints.Count - 1; i++)
         {
             p0 = controlPoints[i - 1];
             p1 = controlPoints[i];
@@ -397,28 +456,32 @@ public class SceneManager : MonoBehaviour
             smoothNormals.Add(n);
         }
 
+        smoothNormals.Add(controlPoints.Last());
+
         return smoothNormals;
     }
-
-	public void AddDNAPath(List<Vector4> path)
+    
+	public void AddCurve(string name, List<Vector4> path)
 	{
+        if (!CurveIngredientsNames.Contains(name))
+        {
+            throw new Exception("Curve ingredient type do not exists");
+        }
+
         var controlPoints = NormalizeControlPoints(path);
         var normals = GetSmoothNormals(controlPoints);
-		float stopFlag = (float)controlPointsTypes.Count+1.0f/(float)(DnaControlPointsPositions.Count+1);
-		//float stopFlag = (float)DnaControlPointsPositions.Count+1.0f/(float)(controlPointsTypes.Count);
-		//float stopFlag = (float)DnaAtoms.Count+1.0f/(float)DnaAtomsCount;
-		if (DnaControlPointsPositions.Count+1 == 1 ) stopFlag = (float) controlPointsTypes.Count+0.1f;
-
-		Debug.Log ("the stop flag is set at " + stopFlag.ToString ());
+		
+        var curveId = DnaControlPointsCount.Count;
+        var curveType = CurveIngredientsNames.IndexOf(name);
+        
         for (int i = 0; i < controlPoints.Count; i++)
         {
-            //stopFlag = DnaControlPointsPositions.Count;
-
-            //var stopFlag = (i%25 == 0) ? 5 : DnaControlPointsPositions.Count;   // To debug
-            
-            controlPoints[i] = new Vector4(controlPoints[i].x, controlPoints[i].y, controlPoints[i].z, stopFlag);
+            DnaControlPointsInfos.Add(new Vector4(curveId, curveType, 0, 0));
         }
-        
+
+        DnaControlPointsCount.Add(path.Count);
+        DnaControlPointsStart.Add(DnaControlPointsNormals.Count);
+
         DnaControlPointsNormals.AddRange(normals);
         DnaControlPointsPositions.AddRange(controlPoints);
 
@@ -540,9 +603,17 @@ public class SceneManager : MonoBehaviour
 
         // Clear dna data
         DnaAtoms.Clear();
-		controlPointsTypes.Clear ();
+
+		CurveIngredientsInfos.Clear ();
+        CurveIngredientsNames.Clear();
+        CurveIngredientsColors.Clear();
+
+        DnaControlPointsStart.Clear();
+        DnaControlPointsCount.Clear();
+
         DnaControlPointsPositions.Clear();
         DnaControlPointsNormals.Clear();
+        DnaControlPointsInfos.Clear();
 
         UnitInstancePositions.Clear();
     }
@@ -588,9 +659,12 @@ public class SceneManager : MonoBehaviour
 
         // Upload Dna data
         ComputeBufferManager.Instance.DnaAtoms.SetData(DnaAtoms.ToArray());
-		ComputeBufferManager.Instance.controlPointsTypes.SetData(controlPointsTypes.ToArray());
+		ComputeBufferManager.Instance.CurveIngredientsInfos.SetData(CurveIngredientsInfos.ToArray());
+		ComputeBufferManager.Instance.CurveIngredientsColors.SetData(CurveIngredientsColors.ToArray());
+
         ComputeBufferManager.Instance.DnaControlPointsPositions.SetData(DnaControlPointsPositions.ToArray());
         ComputeBufferManager.Instance.DnaControlPointsNormals.SetData(DnaControlPointsNormals.ToArray());
+        ComputeBufferManager.Instance.DnaControlPointsInfos.SetData(DnaControlPointsInfos.ToArray());
 
         // Make sure that the renderer has been created
         //var a = Renderer.Instance;

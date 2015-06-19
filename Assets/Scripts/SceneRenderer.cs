@@ -156,9 +156,11 @@ public class SceneRenderer : MonoBehaviour
         _renderDnaMaterial.SetFloat("_SegmentLength", DisplaySettings.Instance.DistanceContraint);
         _renderDnaMaterial.SetFloat("_TwistFactor", DisplaySettings.Instance.TwistFactor);
         _renderDnaMaterial.SetBuffer("_DnaAtoms", ComputeBufferManager.Instance.DnaAtoms);
-		_renderDnaMaterial.SetBuffer("_controlPointsTypes", ComputeBufferManager.Instance.controlPointsTypes);
+        _renderDnaMaterial.SetBuffer("_CurveIngredientsInfos", ComputeBufferManager.Instance.CurveIngredientsInfos);
+        _renderDnaMaterial.SetBuffer("_CurveIngredientsColors", ComputeBufferManager.Instance.CurveIngredientsColors);
         _renderDnaMaterial.SetBuffer("_DnaControlPoints", ComputeBufferManager.Instance.DnaControlPointsPositions);
         _renderDnaMaterial.SetBuffer("_DnaControlPointsNormals", ComputeBufferManager.Instance.DnaControlPointsNormals);
+        _renderDnaMaterial.SetBuffer("_DnaControlPointsInfos", ComputeBufferManager.Instance.DnaControlPointsInfos);
 		
 		_renderDnaMaterial.SetFloat("_Scale", DisplaySettings.Instance.Scale);
 		_renderDnaMaterial.SetInt("_EnableCrossSection", Convert.ToInt32(DisplaySettings.Instance.EnableCrossSection));

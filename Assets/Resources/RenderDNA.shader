@@ -15,10 +15,14 @@ uniform int _EnableTwist;
 uniform float _Scale;
 uniform float _TwistFactor;
 uniform float _SegmentLength;
-uniform	StructuredBuffer<float4> _controlPointsTypes;
+
+uniform	StructuredBuffer<float4> _CurveIngredientsInfos;
+uniform	StructuredBuffer<float4> _CurveIngredientsColors;
+
 uniform	StructuredBuffer<float4> _DnaAtoms;
 uniform	StructuredBuffer<float4> _DnaControlPoints;
 uniform	StructuredBuffer<float4> _DnaControlPointsNormals;
+uniform	StructuredBuffer<float4> _DnaControlPointsInfos;
 
 uniform int _EnableCrossSection;
 uniform float4 _CrossSectionPlane;
@@ -33,7 +37,7 @@ struct vs2ds
 	int pid : INT4;
 	int type : INT5;
 	
-	float radiusScale : FLOAT0;		
+	float radius : FLOAT0;		
 	float twist : FLOAT1;
 	
 	float3 pos0 : FLOAT30;
@@ -43,6 +47,7 @@ struct vs2ds
 	
 	float3 n1 : FLOAT34;
 	float3 n2 : FLOAT35;	
+	float3 color : FLOAT36;	
 							
 	float4 rootPoints[NUM_ROOT_POINTS_FLOAT] : FLOAT4;
 };
@@ -56,67 +61,70 @@ bool SpherePlaneTest( float4 plane, float3 center, float offset)
 
 void VS(uint id : SV_VertexID, out vs2ds output)
 {			 
-	float4 pos0 = _DnaControlPoints[id]; // We skip the first segment //Why 
+	float4 pos0 = _DnaControlPoints[id]; 
 	float4 pos1 = _DnaControlPoints[id + 1];
 	float4 pos2 = _DnaControlPoints[id + 2];
 	float4 pos3 = _DnaControlPoints[id + 3];
     
-	output.n1 = _DnaControlPointsNormals[id].xyz;
-	output.n2 = _DnaControlPointsNormals[id + 1].xyz;
+	float4 info0 = _DnaControlPointsInfos[id]; 
+	float4 info1 = _DnaControlPointsInfos[id + 1];
+	float4 info2 = _DnaControlPointsInfos[id + 2];
+	float4 info3 = _DnaControlPointsInfos[id + 3];
+			    
+	int type = info1.y;	
+	float4 ingredientInfo = _CurveIngredientsInfos[type];
+	float3 ingredientColor = _CurveIngredientsColors[type].xyz;
 
-	bool skipSegment = pos0.w != pos1.w || pos1.w != pos2.w || pos2.w != pos3.w;
-    
-    
-    //output.pid = (float) pos0.w;//(int)ceil(pos0.w);
-    
-    int typeId = (int) floor(pos0.w)-1;
+	int numSteps = ingredientInfo.z;
+	numSteps = min(numSteps, NUM_STEPS_PER_SEGMENT_MAX);	
 	
-    int numLinearSeachStep = 4;
-	int numBinarySearchStep = 8;			
-	int nstep = _controlPointsTypes[typeId].z;//_NumSteps;//_controlPointsTypes[typeId].z;
-	int numSteps = min(nstep, NUM_STEPS_PER_SEGMENT_MAX);	
-	
-	float linearStepSize = 0.5f / numSteps;	
-	float stepLength = _SegmentLength / (float)numSteps;
-    
-    float spcount = _controlPointsTypes[typeId].x;
+    float spcount = ingredientInfo.x;
 	float d = spcount-floor(spcount);
-	int sphcount = 1;
-	if (d != 0) {
+	
+	int sphereCount = 1;
+	if (d != 0)
+	{
 	 	float invdiff = 1.0f/d;    
     	if (floor(spcount) ==0) invdiff = (1.0f/spcount);
-    	sphcount = (int) invdiff;
-    	if (d == 0.1f) sphcount =1;
+    	sphereCount = (int) invdiff;
+    	if (d == 0.1f) sphereCount =1;
 	}
-    int sphereCount = sphcount;
+
+	bool skipSegment = info0.x != info1.x || info1.x != info2.x || info2.x != info3.x;
+	skipSegment = skipSegment || SpherePlaneTest(_CrossSectionPlane, pos1.xyz  * _Scale, 0) && _EnableCrossSection == 1;
     
-    output.type = typeId;
-    output.pid = floor(spcount);
-    
+    output.type = type;
+	output.segmentId = id.x;
+    output.pid = floor(spcount);    	
+	output.numSteps = numSteps;	
+	output.localSphereCount = (skipSegment) ? 0 : sphereCount;
+	output.radius = ingredientInfo.w;
+	
+	//output.localSphereCount = 2;
+	//output.radiusScale = 2;	
+	
+	output.twist =_TwistFactor;//ingredientInfo[typeId].y;//_TwistFactor;//
+	output.globalSphereCount = numSteps * output.localSphereCount;
+	
 	output.pos0 = pos0.xyz;
 	output.pos1 = pos1.xyz;
 	output.pos2 = pos2.xyz;
 	output.pos3 = pos3.xyz;
 	
-	output.segmentId = id.x;
-	output.numSteps = numSteps;
-	
-	output.localSphereCount = 1;
-	output.radiusScale = 2;
+	output.n1 = _DnaControlPointsNormals[id].xyz;
+	output.n2 = _DnaControlPointsNormals[id + 1].xyz;
 
-	float4 sphere = pos0  * _Scale;
-	bool cullInstance = SpherePlaneTest(_CrossSectionPlane, sphere.xyz, 0);
-	bool cullit = !cullInstance && _EnableCrossSection == 1;	
+	output.color = ColorCorrection(ingredientColor);
 
-	output.localSphereCount = (cullit || skipSegment) ? 0 : sphereCount;// sphereCount;
-	output.radiusScale = _controlPointsTypes[typeId].w;//dnaAtom[0].w ?
-	
-	output.twist =_TwistFactor;//_controlPointsTypes[typeId].z;//_TwistFactor;//
-	output.globalSphereCount = numSteps * output.localSphereCount;
-	
 	/*****/
 
 	// First pass to find out the size of the last interval 
+		
+    int numLinearSeachStep = 4;
+	int numBinarySearchStep = 8;	
+		
+	float linearStepSize = 0.5f / numSteps;	
+	float stepLength = _SegmentLength / (float)numSteps;
 
 	float3 current;	
 	int stepsCount = 0;
@@ -347,13 +355,13 @@ void DS(hsConst input, const OutputPatch<vs2ds, 1> op, float2 uv : SV_DomainLoca
 	//}
 
 	output.position = baseCenter * _Scale + sphereCenter * _Scale; 
-	//output.radius =; // Discard unwanted spheres	
 
-	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphere.w * op[0].radiusScale * _Scale; // Discard unwanted spheres	
-	//float c = (float)atomId / (float)op[0].localSphereCount;
-	output.color = float3(1, midStepLerp, ((float)atomId / (float)op[0].localSphereCount));	// Debug colors		
-	output.color = float3(0,1-op[0].type/4.0f, 0);	// Debug colors		
-	output.color = float3(0,1, 0);	// Debug colors		
+	output.radius = (y >= input.tessFactor[0] || sphereId >= op[0].globalSphereCount) ? 0 : sphere.w * op[0].radius * _Scale; // Discard unwanted spheres	
+	////float c = (float)atomId / (float)op[0].localSphereCount;
+	//output.color = float3(1, midStepLerp, ((float)atomId / (float)op[0].localSphereCount));	// Debug colors		
+	//output.color = float3(0,1-op[0].type/4.0f, 0);	// Debug colors		
+	//output.color = float3(0,1, 0);	// Debug colors		
+	output.color = op[0].color;
 	output.id = op[0].segmentId * op[0].numSteps + stepId;
 }
 

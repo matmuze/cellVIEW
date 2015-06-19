@@ -66,9 +66,12 @@ public class ComputeBufferManager : MonoBehaviour
     public ComputeBuffer LipidInstanceCullFlags;
 
     public ComputeBuffer DnaAtoms;
-	public ComputeBuffer controlPointsTypes;
+	public ComputeBuffer CurveIngredientsInfos;
+    public ComputeBuffer CurveIngredientsColors;
+
     public ComputeBuffer DnaControlPointsPositions;
     public ComputeBuffer DnaControlPointsNormals;
+    public ComputeBuffer DnaControlPointsInfos;
 
     //*****//
 
@@ -165,9 +168,12 @@ public class ComputeBufferManager : MonoBehaviour
 
         // Dna data
         if (DnaAtoms == null) DnaAtoms = new ComputeBuffer(NumDnaAtomsMax, 16);
-		if (controlPointsTypes == null) controlPointsTypes = new ComputeBuffer(NumDnaAtomsMax, 16);
+		if (CurveIngredientsInfos == null) CurveIngredientsInfos = new ComputeBuffer(32, 16);
+        if (CurveIngredientsColors == null) CurveIngredientsColors = new ComputeBuffer(32, 16);
+
         if (DnaControlPointsPositions == null) DnaControlPointsPositions = new ComputeBuffer(NumDnaControlPointsMax, 16);
         if (DnaControlPointsNormals == null) DnaControlPointsNormals = new ComputeBuffer(NumDnaControlPointsMax, 16);
+        if (DnaControlPointsInfos == null) DnaControlPointsInfos = new ComputeBuffer(NumDnaControlPointsMax, 16);
 	}
 	
 	// Update is called once per frame
@@ -199,8 +205,10 @@ public class ComputeBufferManager : MonoBehaviour
         if (LipidInstanceCullFlags != null) { LipidInstanceCullFlags.Release(); LipidInstanceCullFlags = null; }
 
         if (DnaAtoms != null) { DnaAtoms.Release(); DnaAtoms = null; }
-		if (controlPointsTypes != null) { controlPointsTypes.Release(); controlPointsTypes = null; }
+		if (CurveIngredientsInfos != null) { CurveIngredientsInfos.Release(); CurveIngredientsInfos = null; }
+        if (CurveIngredientsColors != null) { CurveIngredientsColors.Release(); CurveIngredientsColors = null; }
         if (DnaControlPointsPositions != null) { DnaControlPointsPositions.Release(); DnaControlPointsPositions = null; }
         if (DnaControlPointsNormals != null) { DnaControlPointsNormals.Release(); DnaControlPointsNormals = null; }
+        if (DnaControlPointsInfos != null) { DnaControlPointsInfos.Release(); DnaControlPointsInfos = null; }
 	}
 }

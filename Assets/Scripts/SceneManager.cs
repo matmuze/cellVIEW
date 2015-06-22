@@ -160,7 +160,10 @@ public class SceneManager : MonoBehaviour
        GlobalAtomCount += UnitAtomCount;
     }
     
-    public void AddIngredient(string ingredientName, Bounds bounds, List<Vector4> atoms, List<List<Vector4>> clusters = null) 
+    public void AddIngredient(string ingredientName, Bounds bounds, 
+	                          List<Vector4> atoms, 
+	                          Color ingr_color,
+	                          List<List<Vector4>> clusters = null) 
     {
         if (IngredientNames.Contains(ingredientName)) return;
 
@@ -169,7 +172,10 @@ public class SceneManager : MonoBehaviour
         
         IngredientToggleFlags.Add(1);
         IngredientNames.Add(ingredientName);
-        IngredientsColors.Add(Helper.GetRandomColor());
+		if (ingr_color == null) {
+			ingr_color = Helper.GetRandomColor ();
+		}
+		IngredientsColors.Add(ingr_color);
         IngredientBoundingSpheres.Add(Vector3.Magnitude(bounds.extents));
 
         IngredientAtomCount.Add(atoms.Count);
@@ -313,9 +319,11 @@ public class SceneManager : MonoBehaviour
     //    UnitAtomCount += LipidAtomPositions.Count;
     //}
 
-    public void AddCurveIngredient(string name, List<Vector4> atomSpheres)
+	public void AddCurveIngredient(string name, List<Vector4> atomSpheres,Color ingr_color)
     {
         if (IngredientNames.Contains(name)) return;
+		if (ingr_color == null)
+			ingr_color = Helper.GetRandomColor ();
 
         float distance = 34.0f;
         float twist = 0.0f;
@@ -324,32 +332,35 @@ public class SceneManager : MonoBehaviour
 
         if (name.Contains("DNA"))
         {
-            //angular 60
-            numStep = 12;
+			//angular 60 239 222 142
+			numStep = 12;
             twist = 34.3f;
             radius = 1;// radii total 11.5
             distance = 34.0f;
+			ingr_color =  new Color(181.0f/255.0f,137.0f/255.0f,5.0f/255.0f);
         }
         else if (name.Contains("RNA"))
         {
-            //angular 60
-            numStep = 11;
+			//angular 60 241 217 207
+			numStep = 11;
             twist = 34.3f;
             radius = 1;// radii total 11.5
             distance = 34.0f;
+			ingr_color = Color.cyan;// new Color(241.0f/255.0f,217.0f/255.0f,207.0f/255.0f);
         }
         else if (name.Contains("peptide"))
         //no twist/scale = 3/numStep = ?
-        {
-            //angular 60
-            numStep = 10;
+		{//152 187 191
+			//angular 60 
+			numStep = 10;
             twist = 0;
             radius = 2.5f;// radii total 11.5
             distance = 34.0f;
+			ingr_color = new Color(152.0f/255.0f,187.0f/255.0f,191.0f/255.0f);
         }
         else if (name.Contains("lypoglycane"))
-        //no distance constraint ?
-        //numStep1
+			//no distance constraint ? 164 208 149
+			//numStep1
         //scale sphere 20
         {
             //angular 60
@@ -357,12 +368,13 @@ public class SceneManager : MonoBehaviour
             twist = 0;
             radius = 8;// radii total 11.5
             distance = 34.0f;
+			ingr_color = Color.green;//new Color(164.0f/255.0f,208.0f/255.0f,149.0f/255.0f);
         }
         else
         {
             //angular 60
             numStep = 11;
-            twist = 34.3f;
+            twist = 0.0f;
             radius = 1;// radii total 11.5
             distance = 34.0f;
         }
@@ -373,7 +385,7 @@ public class SceneManager : MonoBehaviour
         if (atomSpheres.Count == 1) count = (float)DnaAtoms.Count + 0.1f;
 
         CurveIngredientsNames.Add(name);
-        CurveIngredientsColors.Add(Helper.GetRandomColor());
+		CurveIngredientsColors.Add(ingr_color);
         CurveIngredientsInfos.Add(new Vector4(count, twist, numStep, radius));
         DnaAtoms.AddRange(atomSpheres);
     }

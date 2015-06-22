@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -6,6 +7,8 @@ using SimpleJSON;
 
 public static class CellPackLoader
 {
+	public static int current_color;
+	public static List<Color> ColorsPalette;
     public static readonly string ProteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
     //public static readonly string PdbClustererCmd = Application.dataPath + "/../Misc/PdbClusterer/clusterPdb.exe";
 
@@ -112,11 +115,13 @@ public static class CellPackLoader
 		Debug.Log (ingredientDictionary["name"]+" "+pdbName+" " + atomSpheres.Count);
 
 	    var curveIngredientName = ingredientDictionary["name"].Value;
-		SceneManager.Instance.AddCurveIngredient(curveIngredientName, atomSpheres);
-        
+		Color ingrColor = ColorsPalette[current_color];// colorList.Current;
+		SceneManager.Instance.AddCurveIngredient(curveIngredientName, atomSpheres,ingrColor);
+		current_color += 1;
 
 		for (int i=0; i<nCurve; i++)
         {
+			//if (i < nCurve-10) continue;
 			var controlPoints = new List<Vector4> ();
 			if ( ingredientDictionary ["curve" + i.ToString()].Count < 4 ) continue;
 
@@ -131,8 +136,12 @@ public static class CellPackLoader
 
 	}
 
-	public static void AddRecipeIngredients(JSONNode recipeDictionary)
+	public static void AddRecipeIngredients(JSONNode recipeDictionary, Color baseColor)
     {
+		//from the baseColor we take variation around analogous color
+		//IEnumerator<Color> colorList = ColorGenerator.Generate (recipeDictionary.Count).Skip .GetEnumerator();
+		// = ColorGenerator.Generate(recipeDictionary.Count+2).Skip(2).ToList(); 
+
 		for (int j = 0; j < recipeDictionary.Count; j++)
 		{
             var biomt = (bool)recipeDictionary[j]["source"]["biomt"].AsBool;
@@ -140,7 +149,7 @@ public static class CellPackLoader
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
 			Debug.Log ("step "+recipeDictionary[j]["name"].Value);
 
-			//if (!recipeDictionary[j]["name"].Value.Contains("lypoglycane")) continue;
+			//if (!recipeDictionary[j]["name"].Value.Contains("DNA")) continue;
 
 			if (recipeDictionary[j].Count > 3){
 				AddCurveIngredients(recipeDictionary[j]);
@@ -151,8 +160,7 @@ public static class CellPackLoader
 				//continue;
 			}
 
-		    continue;
-
+		    
             if (pdbName == "") continue;  
             if (pdbName == "null") continue;  
 			if (pdbName == "None") continue; 
@@ -201,7 +209,7 @@ public static class CellPackLoader
                 atomClustersL1 = PdbLoader.ClusterAtomsByResidue(atoms, 8, 4);
                 atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 3, 8);
                 //atomClustersL3 = (atoms.Count > 500) ? PdbLoader.ClusterAtomsByChain(atoms, 10, 10) : PdbLoader.ClusterAtomsByChain(atoms, 3, 8);
-                atomClustersL3 = (atoms.Count > 500) ? PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
+                atomClustersL3 = (atoms.Count > 500000) ? PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
 		    }
            
             // use biomt as one single instance until I find  better solution
@@ -237,8 +245,11 @@ public static class CellPackLoader
             atomClusters.Add(atomClustersL3);
 
 			// Add ingredient to scene manager
-            SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres, atomClusters);
-			
+			Color ingrColor = ColorsPalette[current_color];// colorList.Current;
+			Debug.Log ("color "+ingrColor.ToString());
+            SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres,ingrColor,atomClusters);
+			//colorList.MoveNext();
+			current_color+=1;
 			for (int k = 0; k < recipeDictionary[j]["results"].Count; k++)
 			{
 				var p = recipeDictionary[j]["results"][k][0];
@@ -290,17 +301,35 @@ public static class CellPackLoader
 		
 		//we can traverse the json dictionary and gather ingredient source (PDB,center), sphereTree, instance.geometry if we want.
 		//the recipe is optional as it will gave more information than just the result file.
-		
+
+		//idea: use secondary color scheme for compartments, and analogous color for ingredient from the recipe baseColor
+		current_color = 0;
+		//first grab the total number of object
+		int nIngredients = 0;
+		if (resultData ["cytoplasme"] != null)
+			nIngredients += resultData ["cytoplasme"] ["ingredients"].Count;
+		for (int i = 0; i < resultData["compartments"].Count; i++) {
+			nIngredients += resultData["compartments"][i]["interior"]["ingredients"].Count;
+			nIngredients += resultData["compartments"][i]["surface"]["ingredients"].Count;
+		}
+		//generate the palette
+		//ColorsPalette   = ColorGenerator.Generate(nIngredients).Skip(2).ToList(); 
+		ColorsPalette =  ColorGenerator.Generate(nIngredients+2).Skip(2).ToList(); 
+
 		//check if cytoplasme present
+		Color baseColor = new Color(1.0f,107.0f/255.0f,66.0f/255.0f);
 		if (resultData["cytoplasme"] != null)
 		{
-			AddRecipeIngredients(resultData["cytoplasme"]["ingredients"]);
+			baseColor = new Color(1.0f,107.0f/255.0f,66.0f/255.0f);
+			AddRecipeIngredients(resultData["cytoplasme"]["ingredients"],baseColor);
 		}
-		
+
 		for (int i = 0; i < resultData["compartments"].Count; i++)
 		{
-			AddRecipeIngredients (resultData["compartments"][i]["interior"]["ingredients"]);
-			AddRecipeIngredients (resultData ["compartments"] [i] ["surface"] ["ingredients"]);
+			baseColor = new Color(148.0f/255.0f,66.0f/255.0f,255.0f/255.0f);
+			AddRecipeIngredients (resultData["compartments"][i]["interior"]["ingredients"],baseColor);
+			baseColor = new Color(173.0f/255.0f,255.0f/255.0f,66.0f/255.0f);
+			AddRecipeIngredients (resultData ["compartments"] [i] ["surface"] ["ingredients"],baseColor);
 		}
 	}
 
@@ -328,7 +357,9 @@ public static class CellPackLoader
             controlPoints.Add(new Vector4(-x, y, z, 1));
         }
 		var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_U_Base.pdb");
-		SceneManager.Instance.AddCurveIngredient("RNA", atomSpheres);
+		Color ingrColor = ColorsPalette[current_color];// colorList.Current;
+		SceneManager.Instance.AddCurveIngredient("RNA", atomSpheres,ingrColor);
+		current_color += 1;
 		SceneManager.Instance.AddCurve("RNA", controlPoints);
     }
 

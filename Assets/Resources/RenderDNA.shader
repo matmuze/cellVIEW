@@ -91,7 +91,7 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	}
 
 	bool skipSegment = info0.x != info1.x || info1.x != info2.x || info2.x != info3.x;
-	skipSegment = skipSegment || SpherePlaneTest(_CrossSectionPlane, pos1.xyz  * _Scale, 0) && _EnableCrossSection == 1;
+	skipSegment = skipSegment || !SpherePlaneTest(_CrossSectionPlane, pos1.xyz  * _Scale, 0) && _EnableCrossSection == 1;
     
     output.type = type;
 	output.segmentId = id.x;

@@ -240,18 +240,18 @@ public static class CellPackLoader
             PdbLoader.OffsetPoints(ref atomClustersL2, bounds.center);
             PdbLoader.OffsetPoints(ref atomClustersL3, bounds.center);
 
-            if (recipeDictionary[j]["source"]["transform"].Count != 1)
-            {
-                //translate
-                var tr = recipeDictionary[j]["source"]["transform"]["translate"];//rotate also
-                var offset = new Vector3(-tr[0].AsFloat, tr[1].AsFloat, tr[2].AsFloat);
+            //if (recipeDictionary[j]["source"]["transform"].Count != 1)
+            //{
+            //    //translate
+            //    var tr = recipeDictionary[j]["source"]["transform"]["translate"];//rotate also
+            //    var offset = new Vector3(-tr[0].AsFloat, tr[1].AsFloat, tr[2].AsFloat);
 
-                Debug.Log("translate object with offset: " + offset.ToString());
-                PdbLoader.OffsetPoints(ref atomSpheres, offset);
-                PdbLoader.OffsetPoints(ref atomClustersL1, offset * 1.0f);
-                PdbLoader.OffsetPoints(ref atomClustersL2, offset * 1.0f);
-                PdbLoader.OffsetPoints(ref atomClustersL3, offset * 1.0f);
-            }
+            //    Debug.Log("translate object with offset: " + offset.ToString());
+            //    PdbLoader.OffsetPoints(ref atomSpheres, offset);
+            //    PdbLoader.OffsetPoints(ref atomClustersL1, offset * 1.0f);
+            //    PdbLoader.OffsetPoints(ref atomClustersL2, offset * 1.0f);
+            //    PdbLoader.OffsetPoints(ref atomClustersL3, offset * 1.0f);
+            //}
 
             atomClusters.Add(atomClustersL1);
             atomClusters.Add(atomClustersL2);
@@ -462,13 +462,13 @@ public static class CellPackLoader
         // Tell the manager what is the size of the dataset for duplication
         SceneManager.Instance.SetUnitInstanceCount();
 
-        int n = 0;
+        var repeatDataset = new Vector3(0,0,0);
 
-        for (int i = -n; i <= n; i++)
+        for (int i = 0; i < repeatDataset.x; i++)
         {
-            for (int j = -n; j <= n; j++)
+            for (int j = 0; j < repeatDataset.y; j++)
             {
-                for (int k = -n; k <= n; k++)
+                for (int k = 0; k < repeatDataset.z; k++)
                 {
                     SceneManager.Instance.AddUnitInstance(new Vector3(i * 1700, j * 2600, k * 3500));
                 }

@@ -131,14 +131,14 @@ public static class ColorGenerator
 		}
 	}
 	
-	public static IEnumerable<Color> Generate(int numOfColors)
+	public static IEnumerable<Vector3> Generate(int numOfColors)
 	{
 		var points = new Points(numOfColors);
 		
 		foreach (var point in points)
 		{
 			var rgb = RYB.ToRgb(point[0], point[1], point[2]);
-			yield return new Color((float)rgb[0],(float)rgb[1],(float)rgb[2]);
+			yield return new Vector3((float)rgb[0],(float)rgb[1],(float)rgb[2]);
 			//yield return Color.FromArgb(
 			//	(int)Mathf.Floor(255 * rgb[0]),
 			//	(int)Mathf.Floor(255 * rgb[1]),

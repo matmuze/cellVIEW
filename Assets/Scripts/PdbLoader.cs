@@ -15,7 +15,6 @@ public static class PdbLoader
     public static string[] AtomSymbols = { "C", "H", "N", "O", "P", "S" };
     public static float[] FluoColors = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 1,1,0,0 };
 
-
     public static string DefaultPdbDirectory = Application.dataPath + "/../Data/Default/";
 
     public struct Atom
@@ -237,7 +236,7 @@ public static class PdbLoader
                 {
                     throw new Exception("Atom symbol unknown: " + name);
                 }
-
+				if (symbolId==1) continue;//ignore H
                 atomSpheres.Add(new Vector4(-x, y, z, AtomRadii[symbolId]));
             }
 
@@ -371,6 +370,18 @@ public static class PdbLoader
         return clusters;
 	}
 
+	public static List<Vector4> ClusterAtomsPointsKmeans(List<Vector4> atomPoints, int nSpheres, float scale)
+	{
+		//var atomPoints = GetAtomPoints(atoms);
+		List<Vector3> atp = new List<Vector3> ();
+		foreach (Vector4 pt in atomPoints)
+			atp.Add (new Vector3 (pt.x, pt.y, pt.z));
+		var clusters = KMeansClustering.GetKMeansClusterSpheres(atp, nSpheres, scale);
+		
+		Debug.Log("K mean clusters: " +  clusters.Count);
+		
+		return clusters;
+	}
     //http://www.rcsb.org/pdb/101/static101.do?p=education_discussion/Looking-at-Structures/bioassembly_tutorial.html
     public static List<Matrix4x4> ReadBiomtData(string path)
     {

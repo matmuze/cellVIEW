@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 [ExecuteInEditMode]
@@ -6,6 +8,7 @@ public class MicroscopyRender : MonoBehaviour
 {
     public Camera MainCamera;
     public RenderTexture MicroscopyTexture;
+	public List<GameObject> ObjectToRender;
 
     /*****/
 
@@ -70,6 +73,21 @@ public class MicroscopyRender : MonoBehaviour
         _renderProteinsMaterial.SetPass(1);
         
         Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumProteinInstances);
+		//if we have any mesh render them
+		if (ObjectToRender.Count != 0) {
+			foreach (GameObject o in ObjectToRender){
+				//get the mesh
+				Mesh amesh = o.GetComponent<MeshFilter>().sharedMesh;
+				//get the material
+				Material amat = o.GetComponent<MeshRenderer>().sharedMaterial;
+				//set the material
+				amat.SetPass(0);
+				//render
+				Matrix4x4 mat = Matrix4x4.TRS (o.transform.position,o.transform.rotation,o.transform.parent.localScale);
+				Graphics.DrawMeshNow(amesh, mat);
+			}
+		}
+
     }
 }
 

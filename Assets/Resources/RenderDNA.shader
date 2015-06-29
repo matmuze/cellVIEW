@@ -103,7 +103,7 @@ void VS(uint id : SV_VertexID, out vs2ds output)
 	//output.localSphereCount = 2;
 	//output.radiusScale = 2;	
 	
-	output.twist =_TwistFactor;//ingredientInfo[typeId].y;//_TwistFactor;//
+	output.twist =ingredientInfo.y;//ingredientInfo[typeId].y;//_TwistFactor;//
 	output.globalSphereCount = numSteps * output.localSphereCount;
 	
 	output.pos0 = pos0.xyz;

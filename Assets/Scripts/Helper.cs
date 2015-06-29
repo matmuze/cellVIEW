@@ -251,9 +251,9 @@ public static class Helper
         if (!File.Exists(filePath)) throw new Exception("File not found: " + filePath);
 
         var bytes = File.ReadAllBytes(filePath);
-        var floats = new float[bytes.Length / sizeof(float)];
+		//BitConverter.IsLittleEndian (bytes [0]);
+        var floats = new float[bytes.Length / sizeof(float)];//4 ?
         Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);
-
         return floats;
     }
 

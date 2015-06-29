@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -50,7 +51,8 @@ public class SceneManager : MonoBehaviour
     public List<Vector4> DnaControlPointsInfos = new List<Vector4>();
 
     public List<string> CurveIngredientsNames = new List<string>();
-    public List<Vector4> CurveIngredientsInfos = new List<Vector4>();
+	public Dictionary<string,Vector4> CurveIngredientsInfosConstraint = new Dictionary<string,Vector4>();
+	public List<Vector4> CurveIngredientsInfos = new List<Vector4>();
     public List<Vector4> CurveIngredientsColors = new List<Vector4>();
 
     public List<int> DnaControlPointsStart = new List<int>();
@@ -220,63 +222,67 @@ public class SceneManager : MonoBehaviour
         UnitAtomCount += IngredientAtomCount[ingredientId];
     }
 
-    public void LoadMembrane(string filePath, Vector3 position, Quaternion rotation)
-    {
-        if (LipidAtomPositions.Count != 0)
-        {
-            throw new Exception("Membrane already added");
-        }
-
-        var batchCount = 0;
-
-        var lipidIndex = 1;
-        var lipidAtomStart = 0;
-        var sphereBatch = new List<Vector4>();
-        var membraneAtoms = new List<Vector4>();
-        var membraneData = Helper.ReadBytesAsFloats(filePath);
-
-        var firstAtom = new Vector4(membraneData[0], membraneData[1], membraneData[2], PdbLoader.AtomRadii[(int)membraneData[3]]);
-        sphereBatch.Add(firstAtom);
-        var lastAtom = firstAtom;
-
-        for (var i = 5; i < membraneData.Length; i += 5)
-        {
-            var currentAtom = new Vector4(membraneData[i], membraneData[i + 1], membraneData[i + 2], PdbLoader.AtomRadii[(int)membraneData[i + 3]]);
-            var distance = Vector3.Distance(currentAtom, lastAtom);
-
-            if (distance > 50 || i >= membraneData.Length -5)
-            {
-                var bounds = PdbLoader.GetBounds(sphereBatch);
-                var center = new Vector4(bounds.center.x, bounds.center.y, bounds.center.z, 0);
-                for (var j = 0; j < sphereBatch.Count; j++) sphereBatch[j] -= center;
-
-                Vector4 batchPosition = position + bounds.center;
-                batchPosition.w = Vector3.Magnitude(bounds.extents);
-
-                LipidInstancePositions.Add(batchPosition);
-                LipidSphereBatchInfos.Add(new Vector4(sphereBatch.Count, lipidAtomStart, 0, 0));
-
-                batchCount++;
-                //Debug.Log(sphereBatch.Count);
-
-                lipidAtomStart += sphereBatch.Count;
-                lipidIndex = (int)membraneData[i + 4];
-
-                membraneAtoms.AddRange(sphereBatch);
-                sphereBatch.Clear();
-            }
-
-            sphereBatch.Add(currentAtom);
-            lastAtom = currentAtom;
-        }
-
-        int a = 0;
-        Debug.Log(batchCount);
-
-        LipidAtomPositions.AddRange(membraneAtoms);
-        UnitAtomCount += LipidAtomPositions.Count;
-    }
-
+	public void LoadMembrane(string filePath, Vector3 position, Quaternion rotation,bool lipidIndex=false)
+	{
+		if (LipidAtomPositions.Count != 0)
+		{
+			throw new Exception("Membrane already added");
+		}
+		
+		var batchCount = 0;
+		
+		//var lipidIndex = 1;
+		var lipidAtomStart = 0;
+		var sphereBatch = new List<Vector4>();
+		var membraneAtoms = new List<Vector4>();
+		var membraneData = Helper.ReadBytesAsFloats(filePath);
+		
+		var firstAtom = new Vector4(membraneData[0], membraneData[1], membraneData[2], PdbLoader.AtomRadii[(int)membraneData[3]]);
+		sphereBatch.Add(firstAtom);
+		var lastAtom = firstAtom;
+		Debug.Log (membraneData.Length);
+		Debug.Log (23273438  * 4 );
+		Debug.Log (firstAtom);
+		int step = 4;
+		if (lipidIndex)
+			step = 5;
+		for (var i = step; i < membraneData.Length; i += step)//why 5 and not 4 ? is there 5 values in the binary?
+		{
+			var currentAtom = new Vector4(membraneData[i], membraneData[i + 1], membraneData[i + 2], PdbLoader.AtomRadii[(int)membraneData[i + 3]]);
+			var distance = Vector3.Distance(currentAtom, lastAtom);
+			
+			if (distance > 50 || i >= membraneData.Length -5)
+			{
+				var bounds = PdbLoader.GetBounds(sphereBatch);
+				var center = new Vector4(bounds.center.x, bounds.center.y, bounds.center.z, 0);
+				for (var j = 0; j < sphereBatch.Count; j++) sphereBatch[j] -= center;
+				
+				Vector4 batchPosition = position + bounds.center;
+				batchPosition.w = Vector3.Magnitude(bounds.extents);
+				
+				LipidInstancePositions.Add(batchPosition);
+				LipidSphereBatchInfos.Add(new Vector4(sphereBatch.Count, lipidAtomStart, 0, 0));
+				
+				batchCount++;
+				//Debug.Log(sphereBatch.Count);
+				
+				lipidAtomStart += sphereBatch.Count;
+				//lipidIndex = (int)membraneData[i + 4];
+				
+				membraneAtoms.AddRange(sphereBatch);
+				sphereBatch.Clear();
+			}
+			
+			sphereBatch.Add(currentAtom);
+			lastAtom = currentAtom;
+		}
+		
+		int a = 0;
+		Debug.Log(batchCount);
+		
+		LipidAtomPositions.AddRange(membraneAtoms);
+		UnitAtomCount += LipidAtomPositions.Count;
+	}
     //public void LoadMembrane(string filePath, Vector3 position, Quaternion rotation)
     //{
     //    if (LipidAtomPositions.Count != 0)
@@ -329,22 +335,22 @@ public class SceneManager : MonoBehaviour
         float twist = 0.0f;
         int numStep = 1;
         float radius = 1;
-
+		//enforce one spheres ?
         if (name.Contains("DNA"))
         {
 			//angular 60 239 222 142
 			numStep = 12;
             twist = 34.3f;
-            radius = 1;// radii total 11.5
-            distance = 34.0f;
-			ingr_color =  new Color(181.0f/255.0f,137.0f/255.0f,5.0f/255.0f);
+            radius = 1.0f;// radii total 11.5
+            distance = 34.0f;//should be 102
+			ingr_color =  Color.yellow;//new Color(181.0f/255.0f,137.0f/255.0f,5.0f/255.0f);
         }
         else if (name.Contains("RNA"))
         {
 			//angular 60 241 217 207
 			numStep = 11;
-            twist = 34.3f;
-            radius = 1;// radii total 11.5
+            twist = 34.3f;//should be random
+            radius = 1;// radii total 11.5 1 is for PDB, else increase and use 6
             distance = 34.0f;
 			ingr_color = Color.cyan;// new Color(241.0f/255.0f,217.0f/255.0f,207.0f/255.0f);
         }
@@ -352,22 +358,21 @@ public class SceneManager : MonoBehaviour
         //no twist/scale = 3/numStep = ?
 		{//152 187 191
 			//angular 60 
-			numStep = 10;
+			numStep = 7;
             twist = 0;
-            radius = 2.5f;// radii total 11.5
-            distance = 34.0f;
-			ingr_color = new Color(152.0f/255.0f,187.0f/255.0f,191.0f/255.0f);
+            radius = 3.0f;// radii total 11.5
+            distance = 20.0f;
+			ingr_color = Color.magenta;// new Color(152.0f/255.0f,187.0f/255.0f,191.0f/255.0f);
         }
         else if (name.Contains("lypoglycane"))
 			//no distance constraint ? 164 208 149
 			//numStep1
         //scale sphere 20
         {
-            //angular 60
-            numStep = 10;
-            twist = 0;
+			numStep = 3;//DisplaySettings.Instance.NumStepsPerSegment;// 10;
+			twist = 0;//DisplaySettings.Instance.TwistFactor;// 0;
             radius = 8;// radii total 11.5
-            distance = 34.0f;
+			distance = 25.0f;
 			ingr_color = Color.green;//new Color(164.0f/255.0f,208.0f/255.0f,149.0f/255.0f);
         }
         else
@@ -385,17 +390,18 @@ public class SceneManager : MonoBehaviour
         if (atomSpheres.Count == 1) count = (float)DnaAtoms.Count + 0.1f;
 
         CurveIngredientsNames.Add(name);
+		CurveIngredientsInfosConstraint.Add (name, new Vector4 (distance, 0, 0, 0));
 		CurveIngredientsColors.Add(ingr_color);
         CurveIngredientsInfos.Add(new Vector4(count, twist, numStep, radius));
         DnaAtoms.AddRange(atomSpheres);
     }
 
-    private List<Vector4> NormalizeControlPoints(List<Vector4> controlPoints)
+    private List<Vector4> NormalizeControlPoints(List<Vector4> controlPoints, float distance)
     {
 		int nP = controlPoints.Count;
 		//insert a point at the end and at the begining
-		controlPoints.Insert (0, controlPoints[0]+(controlPoints[0]-controlPoints[1]));
-		controlPoints.Add (controlPoints[nP-1]+(controlPoints[nP-1]-controlPoints[nP-2]));
+		controlPoints.Insert (0, controlPoints[0]+(controlPoints[0]-controlPoints[1])/2.0f);
+		controlPoints.Add (controlPoints[nP-1]+(controlPoints[nP-1]-controlPoints[nP-2])/2.0f);
 
         var normalizedControlPoints = new List<Vector4>();
         normalizedControlPoints.Add(controlPoints[0]);
@@ -404,7 +410,7 @@ public class SceneManager : MonoBehaviour
         var currentPointId = 1;
         var currentPosition = controlPoints[currentPointId];
 
-        float distance = DisplaySettings.Instance.DistanceContraint;
+        //distance = DisplaySettings.Instance.DistanceContraint;
         float lerpValue = 0.0f;
 
         // Normalize the distance between control points
@@ -480,7 +486,7 @@ public class SceneManager : MonoBehaviour
             throw new Exception("Curve ingredient type do not exists");
         }
 
-        var controlPoints = NormalizeControlPoints(path);
+		var controlPoints = NormalizeControlPoints(path,CurveIngredientsInfosConstraint[name].x);
         var normals = GetSmoothNormals(controlPoints);
 		
         var curveId = DnaControlPointsCount.Count;

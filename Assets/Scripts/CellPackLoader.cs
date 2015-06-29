@@ -8,8 +8,11 @@ using SimpleJSON;
 public static class CellPackLoader
 {
 	public static int current_color;
-	public static List<Color> ColorsPalette;
-    public static readonly string ProteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
+	public static List<Vector3> ColorsPalette;
+	public static List<Vector3> ColorsPalette2;
+	public static Dictionary<int,List<int>> usedColors;
+	public static readonly string ProteinDiretory = Application.dataPath + "/../Data/HIV/proteins/";
+
     //public static readonly string PdbClustererCmd = Application.dataPath + "/../Misc/PdbClusterer/clusterPdb.exe";
 
     //public static void ClusterizeProtein(string pdbName)
@@ -91,6 +94,9 @@ public static class CellPackLoader
         List<Vector4> atomSpheres;
 		Debug.Log (pdbName);
 		Debug.Log (((pdbName == "null") || (pdbName == "None") || (pdbName == null)));
+		
+		//if (ingredientDictionary["name"].Value.Contains ("lypoglycane"))
+		//	pdbName = "lipoglycane_unit";
 
 		if ((pdbName == "null") || (pdbName == "None")||(pdbName == null))
         {
@@ -111,14 +117,16 @@ public static class CellPackLoader
 			}
 			atomSpheres = PdbLoader.ReadAtomSpheres(pdbPath);
 		}
-
+		//float numClusterSeeds = (float)atomSpheres.Count * (10.0f / 100.0f);
+		//atomSpheres = PdbLoader.ClusterAtomsPointsKmeans (atomSpheres,(int)numClusterSeeds,1.0f);
 		Debug.Log (ingredientDictionary["name"]+" "+pdbName+" " + atomSpheres.Count);
 
 	    var curveIngredientName = ingredientDictionary["name"].Value;
-		Color ingrColor = ColorsPalette[current_color];// colorList.Current;
+		Color ingrColor = new Color( ColorsPalette[current_color][0], ColorsPalette[current_color][1], ColorsPalette[current_color][2]);// colorList.Current;
+		// colorList.Current;
 		SceneManager.Instance.AddCurveIngredient(curveIngredientName, atomSpheres,ingrColor);
-		current_color += 1;
-
+		//current_color += 1;
+		//nCurve = 2;
 		for (int i=0; i<nCurve; i++)
         {
 			//if (i < nCurve-10) continue;
@@ -132,11 +140,12 @@ public static class CellPackLoader
 			}
 
 			SceneManager.Instance.AddCurve(curveIngredientName, controlPoints);	
+			//break;
 		}
 
 	}
 
-	public static void AddRecipeIngredients(JSONNode recipeDictionary, Color baseColor)
+	public static void AddRecipeIngredients(JSONNode recipeDictionary, Color baseColor,string prefix)
     {
 		//from the baseColor we take variation around analogous color
 		//IEnumerator<Color> colorList = ColorGenerator.Generate (recipeDictionary.Count).Skip .GetEnumerator();
@@ -148,8 +157,8 @@ public static class CellPackLoader
             var center = (bool)recipeDictionary[j]["source"]["transform"]["center"].AsBool;
 			var pdbName = recipeDictionary[j]["source"]["pdb"].Value.Replace(".pdb", "");
 			Debug.Log ("step "+recipeDictionary[j]["name"].Value);
-
-			//if (!recipeDictionary[j]["name"].Value.Contains("DNA")) continue;
+			var iname = prefix+recipeDictionary[j]["name"];
+			//if (!recipeDictionary[j]["name"].Value.Contains("lypoglycane")) continue;
 
 			if (recipeDictionary[j].Count > 3){
 				AddCurveIngredients(recipeDictionary[j]);
@@ -188,7 +197,7 @@ public static class CellPackLoader
             var biomtTransforms = (biomt) ? PdbLoader.ReadBiomtData(pdbPath) : new List<Matrix4x4>();
             
             //calculate nSphere
-            float numClusterSeeds = (float)atoms.Count * (0.5f / 100.0f);
+            float numClusterSeeds = (float)atoms.Count * (0.1f / 100.0f);
 
             var atomSpheres = new List<Vector4>();
 		    var atomClustersL1 = new List<Vector4>();
@@ -209,8 +218,12 @@ public static class CellPackLoader
                 atomClustersL1 = PdbLoader.ClusterAtomsByResidue(atoms, 8, 4);
                 atomClustersL2 = PdbLoader.ClusterAtomsByChain(atoms, 3, 8);
                 //atomClustersL3 = (atoms.Count > 500) ? PdbLoader.ClusterAtomsByChain(atoms, 10, 10) : PdbLoader.ClusterAtomsByChain(atoms, 3, 8);
-                atomClustersL3 = (atoms.Count > 500000) ? PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
-		    }
+				//atomClustersL3 = (atoms.Count > 500) ? PdbLoader.ClusterAtomsKmeans(atoms, (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
+				Debug.Log (numClusterSeeds);
+				//numClusterSeeds = (float)atomClustersL2.Count * (0.5f / 100.0f);
+				//Debug.Log (numClusterSeeds);
+				atomClustersL3 = ((atoms.Count > 500)&&(numClusterSeeds > 1)) ? PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomClustersL2), (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
+			}
            
             // use biomt as one single instance until I find  better solution
 		    if (biomt)
@@ -245,11 +258,22 @@ public static class CellPackLoader
             atomClusters.Add(atomClustersL3);
 
 			// Add ingredient to scene manager
-			Color ingrColor = ColorsPalette[current_color];// colorList.Current;
-			Debug.Log ("color "+ingrColor.ToString());
-            SceneManager.Instance.AddIngredient(pdbName, bounds, atomSpheres,ingrColor,atomClusters);
+			//Color ingrColor = ColorsPalette[current_color];// colorList.Current;
+
+
+			int cid = paletteGenerator.GetRandomUniqFromSample(current_color,usedColors[current_color]);
+			usedColors[current_color].Add (cid);
+			Vector3 sample = paletteGenerator.colorSamples[cid];
+			//we could some weigthing
+			//sample[0]*=2*((float)atoms.Count/8000f);//weigth per atoms.Count
+			Vector3 c = paletteGenerator.lab2rgb(sample)/255.0f;
+			Color ingrColor = new Color(c[0],c[1],c[2]);
+			//Debug.Log ("color "+current_color+" "+N+" "+ingrColor.ToString());
+			//should try to pick most disctinct one ?
+			//shouldnt use the pdbName for the name of the ingredient, but rather the actual name
+			SceneManager.Instance.AddIngredient(iname, bounds, atomSpheres,ingrColor,atomClusters);
 			//colorList.MoveNext();
-			current_color+=1;
+			//current_color+=1;
 			for (int k = 0; k < recipeDictionary[j]["results"].Count; k++)
 			{
 				var p = recipeDictionary[j]["results"][k][0];
@@ -265,7 +289,7 @@ public static class CellPackLoader
 				// Find centered position
 				if (!center) position += Helper.QuaternionTransform(rotation, bounds.center);
 
-                SceneManager.Instance.AddIngredientInstance(pdbName, position, rotation);
+				SceneManager.Instance.AddIngredientInstance(iname, position, rotation);
 
                 //if (biomt)
                 //{
@@ -283,7 +307,7 @@ public static class CellPackLoader
                 //}
 			}
 			
-            Debug.Log("Added: " + pdbName + " num instances: " + recipeDictionary[j]["results"].Count);
+			Debug.Log("Added: " + iname + " num instances: " + recipeDictionary[j]["results"].Count);
 			Debug.Log("*****");
         }
 	}
@@ -314,31 +338,54 @@ public static class CellPackLoader
 		}
 		//generate the palette
 		//ColorsPalette   = ColorGenerator.Generate(nIngredients).Skip(2).ToList(); 
-		ColorsPalette =  ColorGenerator.Generate(nIngredients+2).Skip(2).ToList(); 
+		ColorsPalette = ColorGenerator.Generate (8).Skip(2).ToList();//.Skip(2).ToList();
+		List<Vector3> startKmeans = new List<Vector3> (ColorsPalette);
+		//paletteGenerator.initKmeans (startKmeans);
 
+		usedColors = new Dictionary<int, List<int>> ();
+		ColorsPalette2 = paletteGenerator.generate(
+				6, // Colors
+				paletteGenerator.testfunction,
+				false, // Using Force Vector instead of k-Means
+				50 // Steps (quality)
+				);
+		// Sort colors by differenciation first
+		//ColorsPalette2 = paletteGenerator.diffSort(ColorsPalette2);
 		//check if cytoplasme present
 		Color baseColor = new Color(1.0f,107.0f/255.0f,66.0f/255.0f);
 		if (resultData["cytoplasme"] != null)
 		{
+			usedColors.Add (current_color,new List<int>());
 			baseColor = new Color(1.0f,107.0f/255.0f,66.0f/255.0f);
-			AddRecipeIngredients(resultData["cytoplasme"]["ingredients"],baseColor);
+			AddRecipeIngredients(resultData["cytoplasme"]["ingredients"],baseColor,"cytoplasme");
+			current_color+=1;
 		}
 
 		for (int i = 0; i < resultData["compartments"].Count; i++)
 		{
 			baseColor = new Color(148.0f/255.0f,66.0f/255.0f,255.0f/255.0f);
-			AddRecipeIngredients (resultData["compartments"][i]["interior"]["ingredients"],baseColor);
+			usedColors.Add (current_color,new List<int>());
+			AddRecipeIngredients (resultData["compartments"][i]["interior"]["ingredients"],baseColor,"interior"+i.ToString());
+			current_color+=1;
 			baseColor = new Color(173.0f/255.0f,255.0f/255.0f,66.0f/255.0f);
-			AddRecipeIngredients (resultData ["compartments"] [i] ["surface"] ["ingredients"],baseColor);
+			usedColors.Add (current_color,new List<int>());
+			AddRecipeIngredients (resultData ["compartments"] [i] ["surface"] ["ingredients"],baseColor,"surface"+i.ToString());
+			current_color+=1;
 		}
 	}
 
-    public static void LoadMembrane()
+    public static void LoadMembraneHIV()
     {
         var membraneDataPath = Application.dataPath + "/../Data/HIV/membrane/HIV_mb.bin";
         if (!File.Exists(membraneDataPath)) throw new Exception("No file found at: " + membraneDataPath);
-        SceneManager.Instance.LoadMembrane(membraneDataPath, Vector3.zero, Quaternion.identity);
+		SceneManager.Instance.LoadMembrane(membraneDataPath, Vector3.zero, Quaternion.identity,true);
     }
+	public static void LoadMembraneMyco()
+	{
+		var membraneDataPath = Application.dataPath + "/../Data/HIV/membrane/myco_full.bin";
+		if (!File.Exists(membraneDataPath)) throw new Exception("No file found at: " + membraneDataPath);
+		SceneManager.Instance.LoadMembrane(membraneDataPath, Vector3.zero, Quaternion.identity);
+	}
 
     public static void LoadRna()
     {
@@ -357,16 +404,16 @@ public static class CellPackLoader
             controlPoints.Add(new Vector4(-x, y, z, 1));
         }
 		var atomSpheres = PdbLoader.ReadAtomSpheres(PdbLoader.DefaultPdbDirectory + "RNA_U_Base.pdb");
-		Color ingrColor = ColorsPalette[current_color];// colorList.Current;
+		Color ingrColor = Color.yellow;//new Color( ColorsPalette[current_color][0], ColorsPalette[current_color][1], ColorsPalette[current_color][2]);// colorList.Current;
 		SceneManager.Instance.AddCurveIngredient("RNA", atomSpheres,ingrColor);
-		current_color += 1;
+		//current_color += 1;
 		SceneManager.Instance.AddCurve("RNA", controlPoints);
     }
 
 	public static void LoadMycoScene()
 	{
 		//var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
-		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/mycoDNA.json";
+		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/mycoDNA1.json";
 		LoadRecipe(cellPackSceneJsonPath);
 		//LoadMembrane();
 		//LoadRna();
@@ -375,6 +422,7 @@ public static class CellPackLoader
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
 		LoadRecipe(cellPackSceneJsonPath);
+		LoadMembraneMyco ();
 		//LoadMembrane();
 		//LoadRna();
 	}
@@ -384,7 +432,7 @@ public static class CellPackLoader
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/BloodHIV1.0_mixed_fixed_nc1.json";
 		LoadRecipe(cellPackSceneJsonPath);
-		LoadMembrane();
+		LoadMembraneHIV();
 		//LoadRna();
 	}
 
@@ -392,7 +440,7 @@ public static class CellPackLoader
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/HIV-1_0.1.6-8_mixed_pdb.json";
 		LoadRecipe(cellPackSceneJsonPath);
-		LoadMembrane();
+		LoadMembraneHIV();
 		LoadRna();
 	}
 

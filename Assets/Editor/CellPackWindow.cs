@@ -63,7 +63,8 @@ public class CellPackWindow : EditorWindow
 
     private Vector2 _scrollPos;
     private string[] _contourOptionsLabels = new string[] { "Show Contour", "Hide Contour", "Contour Only" };
-	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV", "Mycoplasma", "MycoplasmaDNA" };
+	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV","EMBloodHIV", "Mycoplasma", "MycoplasmaDNA","EColiPrototype","EcoliRecipe" };
+	private Vector2 scrollPos ;
 
     void OnGUI()
     {
@@ -97,6 +98,9 @@ public class CellPackWindow : EditorWindow
 
                 EditorGUILayout.BeginVertical(style_2);
                 {
+
+					scrollPos = EditorGUILayout.BeginScrollView(scrollPos, GUILayout.Width (250), GUILayout.Height (600));
+
                     EditorGUILayout.LabelField("Base Settings", EditorStyles.boldLabel);
                     EditorGUI.indentLevel++;
                     DisplaySettings.Instance.Scale = EditorGUILayout.Slider("Global scale", DisplaySettings.Instance.Scale, 0.01f, 1);
@@ -106,7 +110,7 @@ public class CellPackWindow : EditorWindow
                     DisplaySettings.Instance.ShowMembrane = EditorGUILayout.Toggle("Show Membrane", DisplaySettings.Instance.ShowMembrane);
                     DisplaySettings.Instance.ShowRNA = EditorGUILayout.Toggle("Show RNA", DisplaySettings.Instance.ShowRNA);
 
-                    //DisplaySettings.Instance.EnableOcclusionCulling = EditorGUILayout.Toggle("Enable Culling", DisplaySettings.Instance.EnableOcclusionCulling);
+                    DisplaySettings.Instance.EnableOcclusionCulling = EditorGUILayout.Toggle("Enable Culling", DisplaySettings.Instance.EnableOcclusionCulling);
                     DisplaySettings.Instance.DebugObjectCulling = EditorGUILayout.Toggle("Debug Culling", DisplaySettings.Instance.DebugObjectCulling);
                     EditorGUI.indentLevel--;
                     EditorGUILayout.Space();
@@ -163,6 +167,7 @@ public class CellPackWindow : EditorWindow
                         EditorGUI.indentLevel--;
                     }
                     EditorGUILayout.EndToggleGroup();
+					EditorGUILayout.EndScrollView();
                 }
                 EditorGUILayout.EndVertical();
             }

@@ -213,6 +213,9 @@ public static class paletteGenerator  {
 	}
 
 	public static int GetRandomFromSample(int clusterId){
+		Debug.Log (kmeansClusters.Count + " " + kmeansClusters.ContainsKey (clusterId));
+		if (!kmeansClusters.ContainsKey (clusterId))
+			clusterId = 0;
 		int kk =  rnd.Next(0, kmeansClusters[clusterId].Count);
 		//int k =(int) Random.value*;
 		int N = kmeansClusters[clusterId][kk];

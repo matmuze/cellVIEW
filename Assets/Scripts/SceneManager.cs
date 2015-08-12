@@ -129,20 +129,23 @@ public class SceneManager : MonoBehaviour
         //Debug.Log(UnitProteinInstanceCount);
     }
 
-    public void AddUnitInstance(Vector3 offset)
+    public void AddUnitInstance(Vector3 offset,Quaternion offset_rot)//add rotation?
     {
-       //Debug.Log(offset);
-
+		//Will be nice to have rotation
        for (int i = 0; i < UnitProteinInstanceCount; i++)
        {
            var info = InstanceInfos[i];
            //info.w = UnitInstancePositions.Count;
 
            var position = ProteinInstancePositions[i];
+		   //position = offset_rot * position;
            position += new Vector4(offset.x, offset.y, offset.z, 0);
-
-           var rotation = InstanceRotations[i];
-
+		   		
+		   var quat = new Quaternion(InstanceRotations[i].x,InstanceRotations[i].y,InstanceRotations[i].z,InstanceRotations[i].w);
+		   var qrot = quat * offset_rot;   
+			//var rotation = new Vector4(qrot.x,qrot.y,qrot.z,qrot.w);
+		   var rotation = InstanceRotations[i];//*offset_rot;
+		   
            InstanceInfos.Add(info);
            ProteinInstancePositions.Add(position);
            InstanceRotations.Add(rotation);
@@ -151,6 +154,7 @@ public class SceneManager : MonoBehaviour
        for (int i = 0; i < UnitLipidInstanceCount; i++)
        {
            var position = LipidInstancePositions[i];
+			//position = offset_rot * position;
            position += new Vector4(offset.x, offset.y, offset.z, 0);
 
            var batchInfo = LipidSphereBatchInfos[i];
@@ -246,8 +250,12 @@ public class SceneManager : MonoBehaviour
 		int step = 4;
 		if (lipidIndex)
 			step = 5;
+		int safety = 100000;//10millions hurt the computer
+		int counter_safety = 0;
 		for (var i = step; i < membraneData.Length; i += step)//why 5 and not 4 ? is there 5 values in the binary?
 		{
+			//if ((counter_safety%4) !=0) continue;
+			//if (counter_safety >= safety) break;
 			var currentAtom = new Vector4(membraneData[i], membraneData[i + 1], membraneData[i + 2], PdbLoader.AtomRadii[(int)membraneData[i + 3]]);
 			var distance = Vector3.Distance(currentAtom, lastAtom);
 			
@@ -275,6 +283,7 @@ public class SceneManager : MonoBehaviour
 			
 			sphereBatch.Add(currentAtom);
 			lastAtom = currentAtom;
+			counter_safety+=1;
 		}
 		
 		int a = 0;
@@ -625,7 +634,7 @@ public class SceneManager : MonoBehaviour
 		CurveIngredientsInfos.Clear ();
         CurveIngredientsNames.Clear();
         CurveIngredientsColors.Clear();
-
+		CurveIngredientsInfosConstraint.Clear ();
         DnaControlPointsStart.Clear();
         DnaControlPointsCount.Clear();
 

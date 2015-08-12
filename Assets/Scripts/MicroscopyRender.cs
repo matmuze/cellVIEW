@@ -74,6 +74,7 @@ public class MicroscopyRender : MonoBehaviour
         
         Graphics.DrawProcedural(MeshTopology.Points, SceneManager.Instance.NumProteinInstances);
 		//if we have any mesh render them
+		Matrix4x4 mat;
 		if (ObjectToRender.Count != 0) {
 			foreach (GameObject o in ObjectToRender){
 				//get the mesh
@@ -83,7 +84,10 @@ public class MicroscopyRender : MonoBehaviour
 				//set the material
 				amat.SetPass(0);
 				//render
-				Matrix4x4 mat = Matrix4x4.TRS (o.transform.position,o.transform.rotation,o.transform.parent.localScale);
+				if (o.transform.parent)
+					 mat = Matrix4x4.TRS (o.transform.position,o.transform.rotation,o.transform.parent.localScale);
+				else 
+					 mat = Matrix4x4.TRS (o.transform.position,o.transform.rotation,o.transform.localScale);
 				Graphics.DrawMeshNow(amesh, mat);
 			}
 		}

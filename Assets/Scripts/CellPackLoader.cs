@@ -166,7 +166,12 @@ public static class CellPackLoader
 		var biomtTransforms = (biomt) ? PdbLoader.ReadBiomtData(pdbPath) : new List<Matrix4x4>();
 		
 		//calculate nSphere
-		float numClusterSeeds = (float)atoms.Count * (0.1f / 100.0f);
+		//can we decide this percentage according the distance from camera
+		//50
+		//100
+		//150
+		//200
+		float numClusterSeeds = (float)atoms.Count * (0.5f / 100.0f);
 		
 		var atomSpheres = new List<Vector4>();
 		var atomClustersL1 = new List<Vector4>();
@@ -191,10 +196,19 @@ public static class CellPackLoader
 			Debug.Log (numClusterSeeds);
 			//numClusterSeeds = (float)atomClustersL2.Count * (0.5f / 100.0f);
 			//Debug.Log (numClusterSeeds);
-			//atomClustersL3 = ((atoms.Count > 500)&&(numClusterSeeds > 1)) ? PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomClustersL2), (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
-			atomClustersL3 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomClustersL2), 2, 1.0f);
+			atomClustersL3 = ((atoms.Count > 500)&&(numClusterSeeds > 1)) ? PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomClustersL2), (int)numClusterSeeds, 1.0f): new List<Vector4>(atomClustersL2) ;
+			//atomClustersL3 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomClustersL2), 2, 1.0f);
 		}
-		atomClustersL3 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomSpheres), 2, 1.0f);
+		//atomClustersL3 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atomSpheres), 2, 1.0f);
+		//50
+		//atomClustersL1 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atoms), (int)((float)atoms.Count * (0.1f / 100.0f)), 1.0f);
+		//100
+		//atomClustersL2 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atoms), (int)((float)atoms.Count * (0.1f / 100.0f)), 1.0f);
+		//150
+		//atomClustersL3 = PdbLoader.ClusterAtomsPointsKmeans(new List<Vector4>(atoms), (int)((float)atoms.Count * (0.1f / 100.0f)), 1.0f);
+
+
+
 		var bounds = PdbLoader.GetBounds(atomSpheres);
 		PdbLoader.OffsetPoints(ref atomSpheres, bounds.center);
 		PdbLoader.OffsetPoints(ref atomClustersL1, bounds.center);
@@ -288,7 +302,7 @@ public static class CellPackLoader
 			var biomtTransforms = (biomt) ? PdbLoader.ReadBiomtData(pdbPath) : new List<Matrix4x4>();
 			
 			//calculate nSphere
-			float numClusterSeeds = (float)atoms.Count * (0.1f / 100.0f);
+			float numClusterSeeds = (float)atoms.Count * (0.5f / 100.0f);
 			var spherestree = new List<List<Vector4>>();
 			var atomSpheres = new List<Vector4>();
 			var atomClustersL1 = new List<Vector4>();
@@ -354,7 +368,7 @@ public static class CellPackLoader
 			
 			atomClusters.Add(atomClustersL1);
 			atomClusters.Add(atomClustersL2);
-			atomClusters.Add(atomClustersL4);
+			atomClusters.Add(atomClustersL3);
 			//atomClusters.Add(atomClustersL4);
 
 
@@ -519,7 +533,9 @@ public static class CellPackLoader
 		SceneManager.Instance.AddCurveIngredient("RNA", atomSpheres,ingrColor);
 		//current_color += 1;
 		SceneManager.Instance.AddCurve("RNA", controlPoints);
+		Debug.Log ("added RNA " + atomSpheres.Count.ToString () + " " + controlPoints.Count.ToString ());
 	}
+
 	public static void LoadPrototype(){
 
 		//txt file not adequate, use binary
@@ -546,6 +562,7 @@ public static class CellPackLoader
 			//}
 			if ((count % 2)==0) name = "test1";
 			else name = "test2";
+			name="test1";
 			//if (i < Data.Length/2 ){name = "test1";}
 			//else {name="test2";}
 
@@ -577,19 +594,19 @@ public static class CellPackLoader
 		//#endif
 	}
 
-	public static void LoadMycoScene()
+	public static void LoadMycoDNAScene()
 	{
 		//var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/mycoDNA1.json";
-		//LoadRecipe(cellPackSceneJsonPath);
-		LoadMembraneMyco ();
+		LoadRecipe(cellPackSceneJsonPath);
+		//LoadMembraneMyco ();
 		//LoadRna();
 	}
-	public static void LoadMycoDNAScene()
+	public static void LoadMycoScene()
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Mycoplasma1.5_mixed_pdb_fixed.json";
 		LoadRecipe(cellPackSceneJsonPath);
-		LoadMembraneMyco ();
+		//LoadMembraneMyco ();
 		//LoadMembrane();
 		//LoadRna();
 	}
@@ -628,6 +645,13 @@ public static class CellPackLoader
 	{
 		var cellPackSceneJsonPath = Application.dataPath + "/../Data/HIV/cellPACK/Ecoli.1.0_result_sph.json";
 		LoadRecipe(cellPackSceneJsonPath);
+
+	}
+
+	public static void LoadOneMolecule(){
+	
+		AddIngredients ("test1", "MA_matrix_G1", new Color (1.0f, 107.0f / 255.0f, 66.0f / 255.0f), "inner",false);
+		SceneManager.Instance.AddIngredientInstance("test1", new Vector3(0,0,0), Quaternion.identity);
 	}
 
 	public static void LoadScene()
@@ -648,6 +672,8 @@ public static class CellPackLoader
 			LoadEColi ();
 		else if (DisplaySettings.Instance.sceneid == 6)
 			LoadEColiRecipe ();
+		else if (DisplaySettings.Instance.sceneid == 7)
+			LoadOneMolecule ();
 		else
 			LoadHIVScene ();
 		// Tell the manager what is the size of the dataset for duplication
@@ -662,7 +688,7 @@ public static class CellPackLoader
 				SceneManager.Instance.AddUnitInstance (tr.position/DisplaySettings.Instance.Scale,tr.rotation);
 			}
 		} else {
-			var repeatDataset = new Vector3(0,0,0);
+			var repeatDataset = new Vector3(0,0,0);//72instance?
 			
 			for (int i = 0; i < repeatDataset.x; i++)
 			{

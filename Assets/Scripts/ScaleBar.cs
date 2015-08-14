@@ -41,9 +41,9 @@ public class ScaleBar : MonoBehaviour {
 		//characterSize = targetSizeInWorldUnits*10.0f*1/fontSize;
 		//fontsize = targetSizeInWorldUnits*10.0f*1/characterSize
 		if (showPixelInfo)
-			atext.text = scale.ToString () + "A " + Mathf.Ceil (pixelsize).ToString () + "px\n(" + (ratio).ToString () + "A/px)";
+			atext.text = scale.ToString () + "A " + Mathf.Ceil (pixelsize).ToString () + "px\n(" + (ratio).ToString () + "A/px)"+" "+d.ToString();
 		else
-			atext.text = scale.ToString () + "A ";
+			atext.text = scale.ToString () + "A "+d.ToString();
 		//adapt scaleBar to scene scale
 		//Debug.Log ("want " + ratio.ToString()+" "+((1/ratio)*(atext.fontSize))/200.0f);
 		atext.characterSize=(((1/ratio)*(atext.fontSize))/1000.0f);

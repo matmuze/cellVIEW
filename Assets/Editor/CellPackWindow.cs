@@ -63,7 +63,7 @@ public class CellPackWindow : EditorWindow
 
     private Vector2 _scrollPos;
     private string[] _contourOptionsLabels = new string[] { "Show Contour", "Hide Contour", "Contour Only" };
-	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV","EMBloodHIV", "Mycoplasma", "MycoplasmaDNA","EColiPrototype","EcoliRecipe" };
+	private string[] _sceneOptionsLabels = new string[] { "HIV", "BloodHIV","EMBloodHIV", "Mycoplasma", "MycoplasmaDNA","EColiPrototype","EcoliRecipe","testLOD" };
 	private Vector2 scrollPos ;
 
     void OnGUI()
